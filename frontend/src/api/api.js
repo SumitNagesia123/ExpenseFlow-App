@@ -2,8 +2,9 @@ import axios from "axios";
 import { auth } from "../firebaseConfig";
 
 // Use environment variable for backend URL, with localhost fallback
-const API_URL = import.meta.env.VITE_API_BASE_URL 
-  ? `${import.meta.env.VITE_API_BASE_URL}/api`
+const backendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+const API_URL = backendUrl 
+  ? `${backendUrl}/api`
   : "http://localhost:5000/api";
 
 const api = axios.create({

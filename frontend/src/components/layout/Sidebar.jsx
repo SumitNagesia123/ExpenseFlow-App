@@ -44,7 +44,7 @@ const bottomNavItems = [
    SIDEBAR COMPONENT
    ========================================================== */
 
-export default function Sidebar() {
+export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,7 +73,11 @@ export default function Sidebar() {
 
   /* ── Navigation item renderer ────────────────────────── */
   const NavItem = ({ to, label, icon: Icon }) => (
-    <NavLink to={to} className={linkClass}>
+    <NavLink 
+      to={to} 
+      className={linkClass}
+      onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(false)}
+    >
       <Icon className="w-[18px] h-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" />
       <span className="truncate">{label}</span>
       {/* Active indicator dot */}
@@ -84,7 +88,13 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="w-64 bg-[#FAFAF8] dark:bg-[#1e293b] border-r border-stone-200/60 dark:border-white/[0.06] flex flex-col transition-colors h-full">
+    <aside className={`
+      fixed inset-y-0 left-0 z-50 w-64 h-full
+      bg-[#FAFAF8] dark:bg-[#1e293b] border-r border-stone-200/60 dark:border-white/[0.06] 
+      flex flex-col transition-transform duration-300 ease-in-out
+      md:relative md:translate-x-0
+      ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+    `}>
       {/* ── LOGO ────────────────────────────────────────── */}
       <div className="px-6 pt-6 pb-4">
         <h1 className="text-xl font-bold text-stone-800 dark:text-white tracking-tight">

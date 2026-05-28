@@ -1,9 +1,9 @@
 import ThemeToggle from "../ThemeToggle";
 import { useState, useRef, useEffect } from "react";
-import { LogOut, UserCircle, Search } from "lucide-react";
+import { LogOut, UserCircle, Search, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -29,14 +29,22 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 shrink-0
+    <header className="h-16 flex items-center justify-between px-4 md:px-6 shrink-0
                        bg-[#FAFAF8] border-b border-stone-200/60
                        dark:bg-[#1e293b] dark:border-white/[0.06]">
       
-      {/* Greeting */}
-      <p className="font-medium text-stone-700 dark:text-slate-100">
-        Hi {userName} <span role="img" aria-label="wave">👋</span>
-      </p>
+      {/* Left side: Mobile Menu + Greeting */}
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 -ml-2 text-stone-600 hover:bg-stone-200/50 rounded-lg dark:text-slate-300 dark:hover:bg-white/[0.04] transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <p className="font-medium text-stone-700 dark:text-slate-100 hidden sm:block">
+          Hi {userName} <span role="img" aria-label="wave">👋</span>
+        </p>
+      </div>
 
       {/* Right section */}
       <div className="flex items-center gap-3">

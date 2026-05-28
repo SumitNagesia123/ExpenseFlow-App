@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  /* ── LIGHT MODE ──────────────────────────────────────── */
+  body {
+    @apply bg-[#F4F2EE] text-gray-900 antialiased;
+    selection-color: #6366f1;
+  }
+
+  /* ── DARK MODE ───────────────────────────────────────── */
+  .dark body {
+    @apply bg-[#0f172a] text-slate-100;
+  }
+}
+
+/* ── Global border default ─────────────────────────────── */
+* {
+  @apply border-stone-200/60 dark:border-slate-800;
+}
+
+/* ── Design token CSS variables ────────────────────────── */
+:root {
+  /* Light mode surfaces */
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #F4F2EE;
+  --surface-tertiary: #EAE7E1;
+  --surface-card: #FFFFFF;
+  --surface-sidebar: #FAFAF8;
+  --surface-topbar: #FAFAF8;
+  --border-primary: rgba(120, 113, 98, 0.12);
+  --border-card: rgba(120, 113, 98, 0.10);
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-ghost: rgba(99, 102, 241, 0.06);
+}
+
+.dark {
+  --surface-primary: #0f172a;
+  --surface-secondary: #1e293b;
+  --surface-tertiary: #334155;
+  --surface-card: #1e293b;
+  --surface-sidebar: #1e293b;
+  --surface-topbar: #1e293b;
+  --border-primary: rgba(255, 255, 255, 0.06);
+  --border-card: rgba(255, 255, 255, 0.05);
+  --accent: #818cf8;
+  --accent-hover: #6366f1;
+  --accent-ghost: rgba(129, 140, 248, 0.08);
+}
+
+/* ── Tabular numerals for financial figures ─────────────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Charts render correctly ───────────────────────────── */
+.recharts-responsive-container {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── Scrollbar styling ─────────────────────────────────── */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #c4b5a0;
+  border-radius: 9999px;
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #2A2A30;
+}
+
+/* ── Utility classes for new surfaces ──────────────────── */
+.ef-card {
+  @apply bg-white dark:bg-[#1e293b] border border-stone-200/60 dark:border-white/[0.06] rounded-xl shadow-sm;
+}
+
+.ef-card-hover {
+  @apply hover:shadow-md hover:border-stone-300/60 dark:hover:border-white/[0.1] transition-all duration-200;
+}

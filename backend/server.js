@@ -100,7 +100,10 @@ app.get("/api/health", async (req, res) => {
     res.status(500).json({
       status: "error",
       db: "disconnected",
-      error: err.message,
+      error: err.message || "Unknown error",
+      errorName: err.name,
+      errorCode: err.code,
+      errorStack: err.stack,
       hint: "Check DATABASE_URL or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME env vars in Railway"
     });
   }

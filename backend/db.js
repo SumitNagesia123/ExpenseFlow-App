@@ -67,6 +67,28 @@ const initializeDB = async () => {
       )
     `);
 
+    // Create category_budgets table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS category_budgets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        category VARCHAR(255) UNIQUE NOT NULL,
+        budget_limit DECIMAL(10,2) NOT NULL
+      )
+    `);
+
+    // Seed default category budgets
+    await db.query(`
+      INSERT IGNORE INTO category_budgets (category, budget_limit) VALUES
+      ('Food', 5000.00),
+      ('Travel', 2000.00),
+      ('Bills', 10000.00),
+      ('Shopping', 4000.00),
+      ('Fuel', 3000.00),
+      ('Medical', 1500.00),
+      ('Entertainment', 2000.00),
+      ('Miscellaneous', 1000.00)
+    `);
+
     console.log("✅ Database tables verified/initialized successfully.");
   } catch (error) {
     console.error("❌ Database initialization failed:", error.message);

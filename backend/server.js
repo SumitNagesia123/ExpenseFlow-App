@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import db from "./db.js";
 
 /* =========================
    ROUTES (ESM IMPORTS)
@@ -30,7 +31,15 @@ const app = express();
 /* =========================
    MIDDLEWARE
    ========================= */
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://expenseflow-fintech.web.app",
+    "https://expenseflow-fintech.firebaseapp.com",
+    "http://localhost:5173",
+    "http://localhost:3000"
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 /* =========================
@@ -73,6 +82,28 @@ app.use("/api/external-data", externalProxyRoutes);
    ========================= */
 app.get("/", (req, res) => {
   res.send("ExpenseFlow Backend Running ✅");
+});
+
+/* =========================
+   HEALTH CHECK (DB status)
+   ========================= */
+app.get("/api/health", async (req, res) => {
+  try {
+    await db.query("SELECT 1");
+    res.json({
+      status: "ok",
+      db: "connected",
+      dbHost: process.env.DB_HOST || "(from DATABASE_URL)",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      db: "disconnected",
+      error: err.message,
+      hint: "Check DATABASE_URL or DB_HOST/DB_USER/DB_PASSWORD/DB_NAME env vars in Railway"
+    });
+  }
 });
 
 /* =========================

@@ -31,6 +31,10 @@ export const signup = async (req, res) => {
 
     res.status(201).json({ message: "Signup successful" });
   } catch (err) {
+    console.error("Signup error:", err.message);
+    if (err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR' || err.message.includes('connect')) {
+      return res.status(503).json({ error: "Database connection failed. Please try again later.", details: err.message });
+    }
     res.status(500).json({ error: err.message });
   }
 };
@@ -71,6 +75,10 @@ export const login = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error("Login error:", err.message);
+    if (err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR' || err.message.includes('connect')) {
+      return res.status(503).json({ error: "Database connection failed. Please try again later.", details: err.message });
+    }
     res.status(500).json({ error: err.message });
   }
 };

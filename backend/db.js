@@ -35,9 +35,16 @@ const initializeDB = async () => {
         category VARCHAR(255) NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
         date DATE NOT NULL,
-        source VARCHAR(255) DEFAULT 'manual'
+        source VARCHAR(255) DEFAULT 'manual',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    try {
+      await db.query(`ALTER TABLE expenses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+    } catch (err) {
+      // Column already exists, ignore
+    }
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS budget (

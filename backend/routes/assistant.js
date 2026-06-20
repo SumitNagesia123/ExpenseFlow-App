@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../db.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { callAI } from "../utils/aiProvider.js";
 
 const router = express.Router();
 
@@ -92,27 +93,16 @@ RULES:
     // Add current user prompt
     messages.push({ role: "user", content: message });
 
-    // 4. Fetch from Pollinations AI (Zero Key, Zero Cloud)
+    // 4. Fetch from AI Provider Layer
     let reply = "";
     try {
-      const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messages: messages,
-          model: "openai" // Options: openai, mistral, llama, etc.
-        })
-      });
-
-      if (response.ok) {
-        reply = await response.text();
-      } else {
-        throw new Error("Pollinations API returned error");
+      const result = await callAI(messages, { maxTokens: 600 });
+      reply = result.reply;
+      if (!reply) {
+        throw new Error("AI provider returned empty response");
       }
     } catch (apiErr) {
-      console.warn("Pollinations failed, falling back to rules engine:", apiErr);
+      console.warn("AI call failed, falling back to rules engine:", apiErr);
       
       // Heuristic Fallback
       reply = "I am your AI financial assistant. I can help analyze your spending, budget, and subscriptions.";

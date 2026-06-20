@@ -151,22 +151,20 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`✅ Backend running on http://localhost:${PORT}`);
+  console.log(`✅ Backend running on port ${PORT}`);
 
   // ── Keep-Alive Self-Ping ──────────────────────────────────────────────
-  // Railway's free tier sleeps after ~10 min of inactivity.
-  // We ping our own /api/health every 4 minutes to keep the server warm.
-  // This guarantees the app responds instantly on all devices.
-  const SELF_URL = process.env.RAILWAY_STATIC_URL
-    ? `https://${process.env.RAILWAY_STATIC_URL}/api/health`
+  // Prevents Railway from sleeping — pings every 4 minutes
+  const SELF_URL = process.env.NODE_ENV === "production"
+    ? "https://expenseflow-app-production.up.railway.app/api/health"
     : `http://localhost:${PORT}/api/health`;
 
   setInterval(async () => {
     try {
       await fetch(SELF_URL, { signal: AbortSignal.timeout(8000) });
-      console.log(`[KeepAlive] ✅ Self-ping OK — ${new Date().toISOString()}`);
+      console.log(`[KeepAlive] ✅ Pinged ${new Date().toISOString()}`);
     } catch (err) {
-      console.warn("[KeepAlive] ⚠️  Self-ping failed:", err.message);
+      console.warn("[KeepAlive] ⚠️  Ping failed:", err.message);
     }
   }, 4 * 60 * 1000); // every 4 minutes
 });

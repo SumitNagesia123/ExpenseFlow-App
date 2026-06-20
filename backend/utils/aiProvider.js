@@ -1,7 +1,9 @@
 /**
  * AI Provider Abstraction Layer
  * Multi-model support: Pollinations (keyless) → OpenAI → Gemini → Fallback rules engine
+ * Uses retryFetch for automatic retries + circuit-breaking.
  */
+import { retryFetch } from "./retryFetch.js";
 
 const PROVIDERS = {
   POLLINATIONS: "pollinations",
@@ -19,17 +21,16 @@ export async function callAI(messages, options = {}) {
 
   // Try Pollinations (always available, no key required)
   try {
-    const response = await fetch("https://text.pollinations.ai/", {
+    const response = await retryFetch("https://text.pollinations.ai/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(12000),
       body: JSON.stringify({
         messages,
         model: "openai",
         temperature,
         max_tokens: maxTokens
       })
-    });
+    }, { retries: 2, timeoutMs: 12000 });
 
     if (response.ok) {
       const text = await response.text();
@@ -42,15 +43,14 @@ export async function callAI(messages, options = {}) {
   // Try OpenAI if key is configured
   if (process.env.OPENAI_API_KEY) {
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await retryFetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
         },
-        signal: AbortSignal.timeout(15000),
         body: JSON.stringify({ model: "gpt-4o-mini", messages, temperature, max_tokens: maxTokens })
-      });
+      }, { retries: 2, timeoutMs: 15000 });
 
       if (response.ok) {
         const data = await response.json();
@@ -71,18 +71,18 @@ export async function callAI(messages, options = {}) {
         parts: [{ text: m.content }]
       }));
 
-      const response = await fetch(
+      const response = await retryFetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(15000),
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemMsg }] },
             contents: geminiContents,
             generationConfig: { temperature, maxOutputTokens: maxTokens }
           })
-        }
+        },
+        { retries: 2, timeoutMs: 15000 }
       );
 
       if (response.ok) {

@@ -1,11 +1,13 @@
 import axios from "axios";
 import { auth } from "../firebaseConfig";
 
-// Use environment variable for backend URL, with localhost fallback
+// Production Railway URL is the ultimate fallback — works on ALL devices
+const PROD_API = "https://expenseflow-app-production.up.railway.app/api";
+
 const backendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
-const API_URL = backendUrl 
+const API_URL = backendUrl
   ? `${backendUrl}/api`
-  : "http://localhost:5000/api";
+  : PROD_API;
 
 const api = axios.create({
   baseURL: API_URL,

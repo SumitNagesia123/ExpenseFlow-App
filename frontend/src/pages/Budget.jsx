@@ -54,8 +54,13 @@ export default function Budget() {
     try {
       const token = localStorage.getItem("token");
 
+      // Use the same base URL as the api instance — works on all devices
+      const baseUrl = import.meta.env.VITE_API_URL
+        ? `${import.meta.env.VITE_API_URL}/api`
+        : "https://expenseflow-app-production.up.railway.app/api";
+
       const response = await fetch(
-        `http://localhost:5000/api/budget/export?month=${month}&year=${year}`,
+        `${baseUrl}/budget/export?month=${month}&year=${year}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

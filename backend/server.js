@@ -164,7 +164,8 @@ const server = app.listen(PORT, async () => {
           OR title LIKE '%Refund%' 
           OR title LIKE '%Cashback%' 
           OR title LIKE '%Credit%' 
-          OR title LIKE '%Cash Deposit%'`
+          OR title LIKE '%Cash Deposit%'
+          OR (title = 'Amit Nagesia' AND amount = 1000.00)`
     );
     console.log(`🚀 [Startup Cleanup] Deleted credit rows: ${delRes.affectedRows}`);
 

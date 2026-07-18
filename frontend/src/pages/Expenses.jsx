@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 import {
   getExpenses,
@@ -116,14 +117,14 @@ export default function Expenses() {
         source: "manual",
       });
 
-      alert("Expense added successfully");
+      toast.success("Expense added successfully");
     } catch (err) {
       console.error(
         "Add expense error:",
         err
       );
 
-      alert("Failed to add expense");
+      toast.error("Failed to add expense");
     } finally {
       setAddingExpense(false);
     }
@@ -148,14 +149,14 @@ export default function Expenses() {
         )
       );
 
-      alert("Expense deleted successfully");
+      toast.success("Expense deleted successfully");
     } catch (err) {
       console.error(
         "Delete expense error:",
         err
       );
 
-      alert("Failed to delete expense");
+      toast.error("Failed to delete expense");
     }
   };
 
@@ -168,10 +169,10 @@ export default function Expenses() {
       const { preview, total, csvFile } = await parseExcelFile(file);
       setPreviewData(preview);
       setPendingFile(csvFile);
-      alert(`Found ${total} expense rows. Review the preview and confirm.`);
+      toast.success(`Found ${total} expense rows. Review and confirm.`);
     } catch (err) {
       console.error("Excel parse error:", err);
-      alert(typeof err === "string" ? err : "Failed to read Excel file. Make sure it has Date, Description and Amount columns.");
+      toast.error(typeof err === "string" ? err : "Failed to read Excel file. Make sure it has Date, Description and Amount columns.");
     }
   };
 
@@ -182,12 +183,12 @@ export default function Expenses() {
     try {
       if (!file) return;
       const result = await importCSV(file);
-      alert(`CSV imported successfully. ${result.imported} transactions added.`);
+      toast.success(`CSV imported successfully. ${result.imported} transactions added.`);
       const updatedExpenses = await getExpenses();
       setExpenses(updatedExpenses);
     } catch (err) {
       console.error("CSV Import Error:", err);
-      alert("CSV import failed");
+      toast.error("CSV import failed");
     }
   };
 
@@ -198,12 +199,12 @@ export default function Expenses() {
     try {
       if (!file) return;
       const result = await importPDF(file);
-      alert(`PDF imported successfully. ${result.imported} transactions added.`);
+      toast.success(`PDF imported successfully. ${result.imported} transactions added.`);
       const updatedExpenses = await getExpenses();
       setExpenses(updatedExpenses);
     } catch (err) {
       console.error("PDF Import Error:", err);
-      alert("PDF import failed");
+      toast.error("PDF import failed");
     }
   };
 
@@ -214,14 +215,14 @@ export default function Expenses() {
     if (!pendingFile) return;
     try {
       const result = await importCSV(pendingFile);
-      alert(`✅ Imported ${result.imported} transactions successfully!`);
+      toast.success(`✅ Imported ${result.imported} transactions successfully!`);
       setPreviewData(null);
       setPendingFile(null);
       const updated = await getExpenses();
       setExpenses(updated);
     } catch (err) {
       console.error("Import error:", err);
-      alert("Import failed. Please try again.");
+      toast.error("Import failed. Please try again.");
     }
   };
 
@@ -232,7 +233,7 @@ export default function Expenses() {
     const count = expenses.filter(
       (e) => e.source === "Paytm CSV" || e.source === "PDF Statement"
     ).length;
-    if (count === 0) return alert("No imported expenses found.");
+    if (count === 0) return toast.error("No imported expenses found.");
 
     const confirmed = window.confirm(
       `This will permanently delete all ${count} imported expense(s). Continue?`
@@ -242,12 +243,12 @@ export default function Expenses() {
     try {
       await deleteCSVImports();
       await deletePDFImports().catch(() => {}); // ignore if none
-      alert("Imported expenses deleted.");
+      toast.success("Imported expenses deleted.");
       const updated = await getExpenses();
       setExpenses(updated);
     } catch (err) {
       console.error("Delete imports error:", err);
-      alert("Failed to delete imports.");
+      toast.error("Failed to delete imports.");
     }
   };
 

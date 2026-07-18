@@ -68,9 +68,12 @@ function PageLoader() {
 /* ==========================================================
    APP
    ========================================================== */
+import { Toaster } from "react-hot-toast";
+
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ================= PUBLIC ROUTES ================= */}

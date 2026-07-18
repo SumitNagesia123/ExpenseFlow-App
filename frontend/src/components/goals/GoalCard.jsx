@@ -1,10 +1,18 @@
-export default function GoalCard({ goal, onDelete }) {
+import { useState } from "react";
+
+export default function GoalCard({ goal, onDelete, onAddMoney }) {
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [amount, setAmount] = useState("");
+
+  const saved = Number(goal.current_amount !== undefined ? goal.current_amount : goal.saved || 0);
+  const target = Number(goal.target_amount !== undefined ? goal.target_amount : goal.target || 0);
+
   const progress = Math.min(
-    Math.round((goal.saved / goal.target) * 100),
+    Math.round((saved / target) * 100),
     100
   );
 
-  const remainingAmount = goal.target - goal.saved;
+  const remainingAmount = target - saved;
 
   const daysLeft = goal.deadline
     ? Math.ceil(
@@ -13,6 +21,17 @@ export default function GoalCard({ goal, onDelete }) {
     : null;
 
   const isCompleted = goal.status === "completed" || progress === 100;
+
+  const handleAddSubmit = (e) => {
+    e.preventDefault();
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) return;
+    if (onAddMoney) {
+      onAddMoney(goal.id, numAmount);
+    }
+    setAmount("");
+    setShowAddMoney(false);
+  };
 
   return (
     <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-5 shadow-sm border border-stone-200/60 dark:border-white/[0.06] space-y-4 transition-colors group relative">
@@ -42,8 +61,8 @@ export default function GoalCard({ goal, onDelete }) {
 
       {/* AMOUNTS */}
       <div className="text-sm text-gray-600 dark:text-slate-400 space-y-1">
-        <p>Target: ₹{goal.target.toLocaleString()}</p>
-        <p>Saved: ₹{goal.saved.toLocaleString()}</p>
+        <p>Target: ₹{target.toLocaleString()}</p>
+        <p>Saved: ₹{saved.toLocaleString()}</p>
         {!isCompleted && (
           <p>Remaining: ₹{remainingAmount.toLocaleString()}</p>
         )}
@@ -65,15 +84,49 @@ export default function GoalCard({ goal, onDelete }) {
         </div>
       </div>
 
-      {/* DEADLINE */}
-      {goal.deadline && (
-        <p className="text-xs text-gray-500 dark:text-slate-400">
-          {isCompleted
-            ? "🎉 Goal achieved"
-            : daysLeft > 0
-            ? `⏳ ${daysLeft} days left`
-            : "⚠️ Deadline passed"}
-        </p>
+      {/* DEADLINE & ACTION */}
+      <div className="flex items-center justify-between pt-1">
+        {goal.deadline ? (
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            {isCompleted
+              ? "🎉 Goal achieved"
+              : daysLeft > 0
+              ? `⏳ ${daysLeft} days left`
+              : "⚠️ Deadline passed"}
+          </p>
+        ) : (
+          <span />
+        )}
+
+        {!isCompleted && (
+          <button
+            onClick={() => setShowAddMoney(!showAddMoney)}
+            className="text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+          >
+            💰 Add Funds
+          </button>
+        )}
+      </div>
+
+      {/* ADD MONEY BOX */}
+      {showAddMoney && (
+        <form onSubmit={handleAddSubmit} className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+          <input
+            type="number"
+            placeholder="Amount to save"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="flex-1 text-xs border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            required
+            min="1"
+          />
+          <button
+            type="submit"
+            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Save
+          </button>
+        </form>
       )}
     </div>
   );

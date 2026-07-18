@@ -15,7 +15,7 @@ export default function AddGoalModal({ onClose, onAddGoal }) {
 
     onAddGoal({
       name,
-      target: Number(target),
+      target_amount: Number(target),
       deadline,
       category,
     });

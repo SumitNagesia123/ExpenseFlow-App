@@ -25,14 +25,24 @@ router.get("/", protect, async (req, res) => {
     }
 
     /* ==========================================================
-       1. CUMULATIVE STATS (Total Spent & Transactions count)
-       Filters only by year if selected, ignores month selection to accumulate history!
+       1. ROLLING CUMULATIVE STATS (Total Spent & Transactions)
+       Calculates total spent up to the end of the selected month/year.
+       E.g., if July 2026 is selected, sum all transactions up to July 31, 2026.
        ========================================================== */
     let cumulativeFilter = "";
     let cumulativeParams = [userId];
+
     if (year && year !== "All") {
-      cumulativeFilter += " AND YEAR(date) = ?";
-      cumulativeParams.push(year);
+      if (month && month !== "All") {
+        // Filter up to the last day of the selected month
+        cumulativeFilter += " AND date <= LAST_DAY(STR_TO_DATE(?, '%Y-%m-%d'))";
+        const paddedMonth = String(month).padStart(2, "0");
+        cumulativeParams.push(`${year}-${paddedMonth}-01`);
+      } else {
+        // Filter up to the end of the selected year
+        cumulativeFilter += " AND YEAR(date) <= ?";
+        cumulativeParams.push(Number(year));
+      }
     }
 
     const [[cumulativeCards]] = await db.query(
@@ -53,7 +63,6 @@ router.get("/", protect, async (req, res) => {
        ========================================================== */
     let thisMonthSpent = 0;
     if (month && month !== "All") {
-      // Get the specific selected month's spent
       const targetYear = (year && year !== "All") ? Number(year) : new Date().getFullYear();
       const [[monthRow]] = await db.query(
         `SELECT SUM(amount) AS total FROM expenses 
@@ -62,7 +71,6 @@ router.get("/", protect, async (req, res) => {
       );
       thisMonthSpent = Number(monthRow?.total || 0);
     } else {
-      // Fallback: Current calendar month's spent
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       const [[monthRow]] = await db.query(

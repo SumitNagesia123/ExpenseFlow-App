@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 import {
   getExpenses,
@@ -49,6 +50,11 @@ export default function Expenses() {
   /* CSV Preview State */
   const [previewData, setPreviewData] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
+
+  // Custom Confirm Modals State
+  const [showSingleDeleteConfirm, setShowSingleDeleteConfirm] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   /* Add Expense State */
   const [newExpense, setNewExpense] = useState({
@@ -130,32 +136,21 @@ export default function Expenses() {
     }
   };
 
-  /* =========================
-     DELETE EXPENSE
-  ========================= */
-  const handleDeleteExpense = async (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this expense?"
-    );
+  const handleDeleteExpense = (id) => {
+    setPendingDeleteId(id);
+    setShowSingleDeleteConfirm(true);
+  };
 
-    if (!confirmDelete) return;
-
+  const confirmDeleteExpense = async () => {
+    const id = pendingDeleteId;
+    setShowSingleDeleteConfirm(false);
+    setPendingDeleteId(null);
     try {
       await deleteExpense(id);
-
-      setExpenses((prev) =>
-        prev.filter(
-          (expense) => expense.id !== id
-        )
-      );
-
+      setExpenses((prev) => prev.filter((expense) => expense.id !== id));
       toast.success("Expense deleted successfully");
     } catch (err) {
-      console.error(
-        "Delete expense error:",
-        err
-      );
-
+      console.error("Delete expense error:", err);
       toast.error("Failed to delete expense");
     }
   };
@@ -234,12 +229,11 @@ export default function Expenses() {
       (e) => e.source === "Paytm CSV" || e.source === "PDF Statement"
     ).length;
     if (count === 0) return toast.error("No imported expenses found.");
+    setShowBulkDeleteConfirm(true);
+  };
 
-    const confirmed = window.confirm(
-      `This will permanently delete all ${count} imported expense(s). Continue?`
-    );
-    if (!confirmed) return;
-
+  const confirmDeleteImports = async () => {
+    setShowBulkDeleteConfirm(false);
     try {
       await deleteCSVImports();
       await deletePDFImports().catch(() => {}); // ignore if none
@@ -508,9 +502,6 @@ export default function Expenses() {
         </table>
       </div>
 
-      {/* =========================
-          CSV PREVIEW MODAL
-      ========================= */}
       {previewData && (
         <CSVPreviewModal
           previewData={previewData}
@@ -521,6 +512,26 @@ export default function Expenses() {
           onConfirm={handleConfirmImport}
         />
       )}
+
+      {/* Confirm Modals */}
+      <ConfirmModal
+        isOpen={showSingleDeleteConfirm}
+        title="Delete Expense"
+        message="Are you sure you want to permanently delete this expense?"
+        onConfirm={confirmDeleteExpense}
+        onCancel={() => {
+          setShowSingleDeleteConfirm(false);
+          setPendingDeleteId(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        title="Delete All Imported Data"
+        message="Are you sure you want to permanently delete all imported transactions?"
+        onConfirm={confirmDeleteImports}
+        onCancel={() => setShowBulkDeleteConfirm(false)}
+      />
     </div>
   );
 }

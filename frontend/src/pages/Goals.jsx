@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import GoalCard from "../components/goals/GoalCard";
 import AddGoalModal from "../components/goals/AddGoalModal";
+import ConfirmModal from "../components/common/ConfirmModal";
 import { getGoals, createGoal, addMoneyToGoal, deleteGoal } from "../services/goalService";
 import { toast } from "react-hot-toast";
 
@@ -8,6 +9,8 @@ export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   const fetchAllGoals = async () => {
     try {
@@ -59,10 +62,15 @@ export default function Goals() {
     }
   };
 
-  const handleDeleteGoal = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this goal?");
-    if (!confirmed) return;
+  const handleDeleteGoal = (id) => {
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDeleteGoal = async () => {
+    const id = pendingDeleteId;
+    setShowDeleteConfirm(false);
+    setPendingDeleteId(null);
     try {
       await deleteGoal(id);
       setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -151,6 +159,17 @@ export default function Goals() {
           onAddGoal={handleAddGoal}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Savings Goal"
+        message="Are you sure you want to delete this savings goal? This action cannot be undone."
+        onConfirm={confirmDeleteGoal}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setPendingDeleteId(null);
+        }}
+      />
     </div>
   );
 }

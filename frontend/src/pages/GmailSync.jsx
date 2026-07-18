@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import api from "../api/api";
+import ConfirmModal from "../components/common/ConfirmModal";
 import { 
   Mail, 
   RefreshCw, 
@@ -19,6 +20,7 @@ export default function GmailSync() {
   const [status, setStatus] = useState({ connected: false, connectedEmail: "", lastSyncedAt: "" });
   const [transactions, setTransactions] = useState([]);
   const [syncResult, setSyncResult] = useState(null);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [emailInput, setEmailInput] = useState("");
 
   // 1. Fetch current status on load
@@ -66,14 +68,20 @@ export default function GmailSync() {
 
   // 3. Click Disconnect
   const handleDisconnect = async () => {
-    if (!window.confirm("Are you sure you want to disconnect Gmail? Your credentials will be removed.")) return;
+    setShowDisconnectConfirm(true);
+  };
+
+  const confirmDisconnect = async () => {
+    setShowDisconnectConfirm(false);
     try {
       await api.post("/gmail/disconnect");
       setStatus({ connected: false, connectedEmail: "", lastSyncedAt: "" });
       setTransactions([]);
       setSyncResult(null);
+      toast.success("Gmail disconnected successfully.");
     } catch (err) {
       console.error("Failed to disconnect", err);
+      toast.error("Failed to disconnect Gmail.");
     }
   };
 
@@ -299,6 +307,14 @@ export default function GmailSync() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDisconnectConfirm}
+        title="Disconnect Gmail"
+        message="Are you sure you want to disconnect Gmail? Your credentials will be permanently removed."
+        onConfirm={confirmDisconnect}
+        onCancel={() => setShowDisconnectConfirm(false)}
+      />
     </div>
   );
 }

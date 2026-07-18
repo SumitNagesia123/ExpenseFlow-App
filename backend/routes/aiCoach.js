@@ -159,7 +159,7 @@ Be data-driven — reference real numbers from their data. Focus on their bigges
     const { reply, provider } = await callAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
-    ], { maxTokens: 600 });
+    ], { maxTokens: 600, forceProvider: "gemini" });
 
     // Also compute rule-based quick wins
     const quickWins = [];
@@ -257,7 +257,7 @@ router.post("/query", protect, async (req, res) => {
     const { reply, provider } = await callAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: question }
-    ], { maxTokens: 500 });
+    ], { maxTokens: 500, forceProvider: "gemini" });
 
     // Fallback: rule-based answers if AI unavailable
     let fallbackReply = reply;
@@ -305,7 +305,7 @@ router.get("/report", protect, async (req, res) => {
 6. Financial Health Score verdict
 Format using markdown with headers and bullet points.`
       }
-    ], { maxTokens: 1000 });
+    ], { maxTokens: 1000, forceProvider: "gemini" });
 
     // Compute budget health score
     const healthScore = Math.min(100, Math.max(0,
@@ -355,7 +355,7 @@ Given their current spending pattern, generate:
 3. A month-by-month savings milestone plan
 4. Motivational closing statement`
       }
-    ], { maxTokens: 700 });
+    ], { maxTokens: 700, forceProvider: "gemini" });
 
     res.json({
       goalName,

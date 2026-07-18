@@ -18,13 +18,16 @@ const PROVIDERS = {
  * Runs all available APIs in parallel. First one to finish wins and aborts the rest!
  */
 export async function callAI(messages, options = {}) {
-  const { temperature = 0.7, maxTokens = 800 } = options;
+  const { temperature = 0.7, maxTokens = 800, forceProvider } = options;
 
   const activeProviders = [];
   const globalController = new AbortController();
 
-  // 1. Pollinations (Always active)
-  activeProviders.push(
+  // Helper helper to filter by forceProvider
+  const shouldRun = (p) => !forceProvider || forceProvider === p;
+
+  // 1. Pollinations (Always active fallback)
+  if (shouldRun(PROVIDERS.POLLINATIONS) && !forceProvider) {
     (async (signal) => {
       const response = await retryFetch("https://text.pollinations.ai/", {
         method: "POST",
@@ -47,9 +50,10 @@ export async function callAI(messages, options = {}) {
       throw new Error("Pollinations failed or empty response");
     })(globalController.signal)
   );
+  }
 
   // 2. OpenAI
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.OPENAI_API_KEY && shouldRun(PROVIDERS.OPENAI)) {
     activeProviders.push(
       (async (signal) => {
         const response = await retryFetch("https://api.openai.com/v1/chat/completions", {
@@ -75,7 +79,7 @@ export async function callAI(messages, options = {}) {
   }
 
   // 3. Gemini
-  if (process.env.GEMINI_API_KEY) {
+  if (process.env.GEMINI_API_KEY && shouldRun(PROVIDERS.GEMINI)) {
     activeProviders.push(
       (async (signal) => {
         const userMessages = messages.filter(m => m.role !== "system");
@@ -113,7 +117,7 @@ export async function callAI(messages, options = {}) {
   }
 
   // 4. Groq (New!)
-  if (process.env.GROQ_API_KEY) {
+  if (process.env.GROQ_API_KEY && shouldRun(PROVIDERS.GROQ)) {
     activeProviders.push(
       (async (signal) => {
         const response = await retryFetch("https://api.groq.com/openai/v1/chat/completions", {

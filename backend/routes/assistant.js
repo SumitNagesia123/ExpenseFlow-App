@@ -96,7 +96,7 @@ RULES:
     // 4. Fetch from AI Provider Layer
     let reply = "";
     try {
-      const result = await callAI(messages, { maxTokens: 600 });
+      const result = await callAI(messages, { maxTokens: 600, forceProvider: "groq" });
       reply = result.reply;
       if (!reply) {
         throw new Error("AI provider returned empty response");

@@ -12,6 +12,7 @@ import { importPDF } from "../services/pdfImportService";
 
 /* CSV / Excel utilities */
 import { exportToCSV } from "../utils/exportToCSV";
+import { parseCSVPreview } from "../utils/parseCSVPreview";
 import { parseExcelFile } from "../utils/parseExcel";
 
 
@@ -165,13 +166,44 @@ export default function Expenses() {
     if (!file) return;
     try {
       const { preview, total, csvFile } = await parseExcelFile(file);
-      // Show preview in the existing modal
       setPreviewData(preview);
-      setPendingFile(csvFile); // csvFile goes to importCSV on confirm
+      setPendingFile(csvFile);
       alert(`Found ${total} expense rows. Review the preview and confirm.`);
     } catch (err) {
       console.error("Excel parse error:", err);
       alert(typeof err === "string" ? err : "Failed to read Excel file. Make sure it has Date, Description and Amount columns.");
+    }
+  };
+
+  /* =========================
+     CSV IMPORT
+  ========================= */
+  const handleImportCSV = async (file) => {
+    try {
+      if (!file) return;
+      const result = await importCSV(file);
+      alert(`CSV imported successfully. ${result.imported} transactions added.`);
+      const updatedExpenses = await getExpenses();
+      setExpenses(updatedExpenses);
+    } catch (err) {
+      console.error("CSV Import Error:", err);
+      alert("CSV import failed");
+    }
+  };
+
+  /* =========================
+     PDF IMPORT
+  ========================= */
+  const handleImportPDF = async (file) => {
+    try {
+      if (!file) return;
+      const result = await importPDF(file);
+      alert(`PDF imported successfully. ${result.imported} transactions added.`);
+      const updatedExpenses = await getExpenses();
+      setExpenses(updatedExpenses);
+    } catch (err) {
+      console.error("PDF Import Error:", err);
+      alert("PDF import failed");
     }
   };
 
@@ -278,8 +310,44 @@ export default function Expenses() {
               hidden
               onChange={async (e) => {
                 const file = e.target.files[0];
-                e.target.value = ""; // reset so same file can be re-selected
+                e.target.value = "";
                 await handleImportExcel(file);
+              }}
+            />
+          </label>
+
+          {/* CSV IMPORT */}
+          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+            Import CSV
+            <input
+              type="file"
+              accept=".csv,.CSV,text/csv,application/csv,text/plain,application/vnd.ms-excel"
+              hidden
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                  const preview = await parseCSVPreview(file);
+                  setPreviewData(preview);
+                  setPendingFile(file);
+                } catch (err) {
+                  console.error(err);
+                  alert("Invalid CSV file");
+                }
+              }}
+            />
+          </label>
+
+          {/* PDF IMPORT */}
+          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+            Import PDF
+            <input
+              type="file"
+              accept=".pdf"
+              hidden
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                await handleImportPDF(file);
               }}
             />
           </label>

@@ -10,14 +10,11 @@ import {
 import { importCSV, deleteCSVImports, deletePDFImports } from "../services/importService";
 import { importPDF } from "../services/pdfImportService";
 
-/* CSV utilities */
+/* CSV / Excel utilities */
 import { exportToCSV } from "../utils/exportToCSV";
-import { parseCSVPreview } from "../utils/parseCSVPreview";
+import { parseExcelFile } from "../utils/parseExcel";
 
-import {
-  filterExpensesByMonth,
-  filterExpensesByCategory,
-} from "../utils/exportFilters";
+
 
 /* AI / ML */
 import { detectAnomalies } from "../utils/detectAnomalies";
@@ -162,134 +159,64 @@ export default function Expenses() {
   };
 
   /* =========================
-     REAL CSV IMPORT
+     EXCEL IMPORT
   ========================= */
-  const handleImportCSV = async (file) => {
+  const handleImportExcel = async (file) => {
+    if (!file) return;
     try {
-      if (!file) return;
-
-      const result = await importCSV(file);
-
-      alert(
-        `CSV imported successfully. ${result.imported} transactions added.`
-      );
-
-      /* Refresh expenses */
-      const updatedExpenses =
-        await getExpenses();
-
-      setExpenses(updatedExpenses);
+      const { preview, total, csvFile } = await parseExcelFile(file);
+      // Show preview in the existing modal
+      setPreviewData(preview);
+      setPendingFile(csvFile); // csvFile goes to importCSV on confirm
+      alert(`Found ${total} expense rows. Review the preview and confirm.`);
     } catch (err) {
-      console.error(
-        "CSV Import Error:",
-        err
-      );
-
-      alert("CSV import failed");
+      console.error("Excel parse error:", err);
+      alert(typeof err === "string" ? err : "Failed to read Excel file. Make sure it has Date, Description and Amount columns.");
     }
   };
 
   /* =========================
-     PDF IMPORT
+     CONFIRM IMPORT (from preview modal)
   ========================= */
-  const handleImportPDF = async (file) => {
+  const handleConfirmImport = async () => {
+    if (!pendingFile) return;
     try {
-      if (!file) return;
-
-      const result = await importPDF(file);
-
-      alert(
-        `PDF imported successfully. ${result.imported} transactions added.`
-      );
-
-      /* Refresh expenses */
-      const updatedExpenses =
-        await getExpenses();
-
-      setExpenses(updatedExpenses);
+      const result = await importCSV(pendingFile);
+      alert(`✅ Imported ${result.imported} transactions successfully!`);
+      setPreviewData(null);
+      setPendingFile(null);
+      const updated = await getExpenses();
+      setExpenses(updated);
     } catch (err) {
-      console.error(
-        "PDF Import Error:",
-        err
-      );
-
-      alert("PDF import failed");
+      console.error("Import error:", err);
+      alert("Import failed. Please try again.");
     }
   };
 
   /* =========================
-     DELETE IMPORTED (CSV / PDF)
+     DELETE IMPORTED
   ========================= */
-  const handleDeleteCSVImports = async () => {
-    const count = expenses.filter((e) => e.source === "Paytm CSV").length;
-    if (count === 0) return alert("No CSV-imported expenses found.");
+  const handleDeleteImports = async () => {
+    const count = expenses.filter(
+      (e) => e.source === "Paytm CSV" || e.source === "PDF Statement"
+    ).length;
+    if (count === 0) return alert("No imported expenses found.");
 
     const confirmed = window.confirm(
-      `This will permanently delete all ${count} CSV-imported expense(s). Continue?`
+      `This will permanently delete all ${count} imported expense(s). Continue?`
     );
     if (!confirmed) return;
 
     try {
-      const result = await deleteCSVImports();
-      alert(result.message || "CSV imports deleted.");
+      await deleteCSVImports();
+      await deletePDFImports().catch(() => {}); // ignore if none
+      alert("Imported expenses deleted.");
       const updated = await getExpenses();
       setExpenses(updated);
     } catch (err) {
-      console.error("Delete CSV imports error:", err);
-      alert("Failed to delete CSV imports.");
+      console.error("Delete imports error:", err);
+      alert("Failed to delete imports.");
     }
-  };
-
-  const handleDeletePDFImports = async () => {
-    const count = expenses.filter((e) => e.source === "PDF Statement").length;
-    if (count === 0) return alert("No PDF-imported expenses found.");
-
-    const confirmed = window.confirm(
-      `This will permanently delete all ${count} PDF-imported expense(s). Continue?`
-    );
-    if (!confirmed) return;
-
-    try {
-      const result = await deletePDFImports();
-      alert(result.message || "PDF imports deleted.");
-      const updated = await getExpenses();
-      setExpenses(updated);
-    } catch (err) {
-      console.error("Delete PDF imports error:", err);
-      alert("Failed to delete PDF imports.");
-    }
-  };
-
-  /* =========================
-     EXPORT HELPERS
-  ========================= */
-  const exportCurrentMonth = () => {
-    const now = new Date();
-
-    const data =
-      filterExpensesByMonth(
-        expenses,
-        now.getMonth(),
-        now.getFullYear()
-      );
-
-    exportToCSV(
-      data,
-      "expenses-current-month.csv"
-    );
-  };
-
-  const exportFoodCategory = () => {
-    const data =
-      filterExpensesByCategory(
-        expenses,
-        "Food"
-      );
-
-    exportToCSV(
-      data,
-      "expenses-food.csv"
-    );
   };
 
   /* =========================
@@ -342,52 +269,17 @@ export default function Expenses() {
             Export All
           </button>
 
-          <button
-            onClick={exportCurrentMonth}
-            className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            Export This Month
-          </button>
-
-          <button
-            onClick={exportFoodCategory}
-            className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-          >
-            Export Food
-          </button>
-
-          {/* CSV IMPORT */}
-          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-            Import CSV
+          {/* EXCEL IMPORT */}
+          <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-xl cursor-pointer hover:bg-emerald-700 transition-colors">
+            📊 Import Excel
             <input
               type="file"
-              accept=".csv,.CSV,text/csv,application/csv,text/plain,application/vnd.ms-excel"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               hidden
               onChange={async (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
-                try {
-                  const preview = await parseCSVPreview(file);
-                  setPreviewData(preview);
-                  setPendingFile(file);
-                } catch (err) {
-                  console.error(err);
-                  alert("Invalid CSV file");
-                }
-              }}
-            />
-          </label>
-
-          {/* PDF IMPORT */}
-          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-            Import PDF
-            <input
-              type="file"
-              accept=".pdf"
-              hidden
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                await handleImportPDF(file);
+                e.target.value = ""; // reset so same file can be re-selected
+                await handleImportExcel(file);
               }}
             />
           </label>
@@ -395,24 +287,14 @@ export default function Expenses() {
           {/* DIVIDER */}
           <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 self-center" />
 
-          {/* DELETE CSV IMPORTS */}
+          {/* DELETE IMPORTS */}
           <button
-            onClick={handleDeleteCSVImports}
-            title="Delete all CSV-imported expenses"
+            onClick={handleDeleteImports}
+            title="Delete all imported expenses"
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
             <span>🗑️</span>
-            Delete CSV
-          </button>
-
-          {/* DELETE PDF IMPORTS */}
-          <button
-            onClick={handleDeletePDFImports}
-            title="Delete all PDF-imported expenses"
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          >
-            <span>🗑️</span>
-            Delete PDF
+            Delete Imported
           </button>
         </div>
       </div>
@@ -567,14 +449,7 @@ export default function Expenses() {
             setPreviewData(null);
             setPendingFile(null);
           }}
-          onConfirm={async () => {
-            await handleImportCSV(
-              pendingFile
-            );
-
-            setPreviewData(null);
-            setPendingFile(null);
-          }}
+          onConfirm={handleConfirmImport}
         />
       )}
     </div>

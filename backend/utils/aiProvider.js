@@ -28,7 +28,8 @@ export async function callAI(messages, options = {}) {
 
   // 1. Pollinations (Always active fallback)
   if (shouldRun(PROVIDERS.POLLINATIONS) && !forceProvider) {
-    (async (signal) => {
+    activeProviders.push(
+      (async (signal) => {
       const response = await retryFetch("https://text.pollinations.ai/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -156,7 +156,7 @@ const server = app.listen(PORT, () => {
   // ── Keep-Alive Self-Ping ──────────────────────────────────────────────
   // Prevents Railway from sleeping — pings every 4 minutes
   const SELF_URL = process.env.NODE_ENV === "production"
-    ? "https://expenseflow-app-production.up.railway.app/api/health"
+    ? "https://expenseflow-app-yxjg.onrender.com/api/health"
     : `http://localhost:${PORT}/api/health`;
 
   setInterval(async () => {

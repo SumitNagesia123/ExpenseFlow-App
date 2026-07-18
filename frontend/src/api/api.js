@@ -14,7 +14,7 @@ const getApiUrl = () => {
   }
   
   // 3. Fallback to production Render backend URL
-  return "https://expenseflow-backend.onrender.com/api";
+  return "https://expenseflow-app-yxjg.onrender.com/api";
 };
 
 export const API_URL = getApiUrl();

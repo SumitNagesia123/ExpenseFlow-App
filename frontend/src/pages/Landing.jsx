@@ -257,26 +257,58 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
-              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
-                <Database className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
-              </div>
-              <h3 className="text-[18px] font-semibold text-white mb-3">Data Ingestion</h3>
-              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Secure API endpoints handle incoming UPI transactions seamlessly from CSVs or direct payloads.</p>
-            </div>
-            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
-              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
-                <Server className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
-              </div>
-              <h3 className="text-[18px] font-semibold text-white mb-3">Processing & Storage</h3>
-              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Powered by a robust MySQL database and Node+Express backend for a real-time, reliable ledger.</p>
-            </div>
+            {/* Dashboard */}
             <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
               <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
                 <LayoutDashboard className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
               </div>
-              <h3 className="text-[18px] font-semibold text-white mb-3">Insights & Dashboard</h3>
-              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Beautiful category charts, dynamic budget limits, and actionable spending trend analytics.</p>
+              <h3 className="text-[18px] font-semibold text-white mb-3">Interactive Dashboard</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Real-time category breakdown, monthly trends, and dynamic remaining budget limits that hide negative values when overspent.</p>
+            </div>
+
+            {/* Excel Import */}
+            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
+              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
+                <Database className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
+              </div>
+              <h3 className="text-[18px] font-semibold text-white mb-3">Excel & CSV Import</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Upload statements directly. The parser auto-detects date, narration, and amount fields from any bank or UPI file.</p>
+            </div>
+
+            {/* AI Assistant */}
+            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
+              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
+                <Search className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
+              </div>
+              <h3 className="text-[18px] font-semibold text-white mb-3">Racing AI Assistant</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Natural language query engine powered by parallel racing AI. Runs Gemini and Groq simultaneously for ultra-fast answers.</p>
+            </div>
+
+            {/* AI Coach */}
+            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
+              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
+                <Server className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
+              </div>
+              <h3 className="text-[18px] font-semibold text-white mb-3">AI Financial Coach</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Behavioral analytics, fraud score analysis, subscription detection, and custom financial intelligence reports.</p>
+            </div>
+
+            {/* Savings Goals */}
+            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
+              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
+                <TrendingUp className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
+              </div>
+              <h3 className="text-[18px] font-semibold text-white mb-3">Interactive Savings Goals</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Create financial targets, add funds live, and view dynamic history transaction logs complete with dates and amounts.</p>
+            </div>
+
+            {/* Toast Alerts */}
+            <div className="bg-[#1A1F2C] p-8 rounded-2xl border border-white/[0.06] shadow-sm hover:border-white/[0.15] transition-colors group">
+              <div className="w-12 h-12 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#7C3AED]/10 group-hover:border-[#7C3AED]/20 transition-colors">
+                <ShieldCheck className="w-6 h-6 text-slate-300 group-hover:text-[#7C3AED] transition-colors" />
+              </div>
+              <h3 className="text-[18px] font-semibold text-white mb-3">Toast Alerts</h3>
+              <p className="text-[15px] text-[#94A3B8] leading-relaxed">Modern sliding toast alerts notify you instantly of successful transactions, errors, and database updates.</p>
             </div>
           </div>
         </div>

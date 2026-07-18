@@ -10,6 +10,7 @@ router.get("/", protect, async (req, res) => {
     const userId = req.user.id;
     const { month, year } = req.query;
 
+    // Time filter for category list, recent list, etc. (uses full filters)
     let timeFilter = "";
     let params = [userId];
 
@@ -23,23 +24,54 @@ router.get("/", protect, async (req, res) => {
       params.push(month);
     }
 
-    const [[cards]] = await db.query(
+    /* ==========================================================
+       1. CUMULATIVE STATS (Total Spent & Transactions count)
+       Filters only by year if selected, ignores month selection to accumulate history!
+       ========================================================== */
+    let cumulativeFilter = "";
+    let cumulativeParams = [userId];
+    if (year && year !== "All") {
+      cumulativeFilter += " AND YEAR(date) = ?";
+      cumulativeParams.push(year);
+    }
+
+    const [[cumulativeCards]] = await db.query(
       `
       SELECT 
         COUNT(*) AS totalTransactions,
-        SUM(amount) AS totalSpent,
-        SUM(
-          CASE 
-            WHEN MONTH(date) = MONTH(CURDATE()) 
-             AND YEAR(date) = YEAR(CURDATE())
-            THEN amount ELSE 0 
-          END
-        ) AS thisMonth
+        SUM(amount) AS totalSpent
       FROM expenses
-      WHERE user_id = ? ${timeFilter}
+      WHERE user_id = ? ${cumulativeFilter}
       `,
-      params
+      cumulativeParams
     );
+
+    /* ==========================================================
+       2. MONTHLY STATS (This Month's Spent)
+       If a month is selected: returns that month's spent.
+       If month is "All": returns current calendar month's spent.
+       ========================================================== */
+    let thisMonthSpent = 0;
+    if (month && month !== "All") {
+      // Get the specific selected month's spent
+      const targetYear = (year && year !== "All") ? Number(year) : new Date().getFullYear();
+      const [[monthRow]] = await db.query(
+        `SELECT SUM(amount) AS total FROM expenses 
+         WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
+        [userId, Number(month), targetYear]
+      );
+      thisMonthSpent = Number(monthRow?.total || 0);
+    } else {
+      // Fallback: Current calendar month's spent
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const [[monthRow]] = await db.query(
+        `SELECT SUM(amount) AS total FROM expenses 
+         WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
+        [userId, currentMonth, currentYear]
+      );
+      thisMonthSpent = Number(monthRow?.total || 0);
+    }
 
     const [categories] = await db.query(
       `
@@ -89,9 +121,9 @@ router.get("/", protect, async (req, res) => {
 
     res.json({
       cards: {
-        totalTransactions: Number(cards?.totalTransactions || 0),
-        totalSpent: Number(cards?.totalSpent || 0),
-        thisMonth: (month && month !== "All") ? Number(cards?.totalSpent || 0) : Number(cards?.thisMonth || 0),
+        totalTransactions: Number(cumulativeCards?.totalTransactions || 0),
+        totalSpent: Number(cumulativeCards?.totalSpent || 0),
+        thisMonth: thisMonthSpent,
       },
       charts: {
         categoryData: categories.map(c => ({

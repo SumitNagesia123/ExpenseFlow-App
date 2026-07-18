@@ -5,7 +5,7 @@ import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 /* ==========================================================
-   GET /api/goals — Load all goals for user
+   GET /api/goals — Load all goals + history for user
    ========================================================== */
 router.get("/", protect, async (req, res) => {
   try {
@@ -15,18 +15,33 @@ router.get("/", protect, async (req, res) => {
       [userId]
     );
 
-    const goals = rows.map((r) => {
-      const target = Number(r.target_amount || 0);
-      const saved = Number(r.current_amount || 0);
-      return {
-        id: r.id,
-        name: r.name,
-        target_amount: target,
-        current_amount: saved,
-        deadline: r.deadline,
-        status: saved >= target ? "completed" : "active",
-      };
-    });
+    const goals = await Promise.all(
+      rows.map(async (r) => {
+        const target = Number(r.target_amount || 0);
+        const saved = Number(r.current_amount || 0);
+
+        // Fetch history records for this specific goal
+        const [historyRows] = await db.query(
+          "SELECT amount, created_at FROM goal_history WHERE goal_id = ? ORDER BY created_at DESC",
+          [r.id]
+        );
+
+        const history = historyRows.map((h) => ({
+          amount: Number(h.amount),
+          date: h.created_at,
+        }));
+
+        return {
+          id: r.id,
+          name: r.name,
+          target_amount: target,
+          current_amount: saved,
+          deadline: r.deadline,
+          status: saved >= target ? "completed" : "active",
+          history, // Return history array!
+        };
+      })
+    );
 
     res.json(goals);
   } catch (err) {
@@ -58,7 +73,8 @@ router.post("/", protect, async (req, res) => {
       target_amount: Number(target_amount),
       current_amount: 0,
       deadline,
-      status: "active"
+      status: "active",
+      history: []
     });
   } catch (err) {
     console.error("Create goal error:", err);
@@ -67,7 +83,7 @@ router.post("/", protect, async (req, res) => {
 });
 
 /* ==========================================================
-   PUT /api/goals/:id/add-money — Add funds to a goal
+   PUT /api/goals/:id/add-money — Add funds + record history
    ========================================================== */
 router.put("/:id/add-money", protect, async (req, res) => {
   try {
@@ -86,12 +102,29 @@ router.put("/:id/add-money", protect, async (req, res) => {
     }
 
     const newAmount = Number(goal.current_amount || 0) + Number(amount);
+    
+    // Update goal saved amount
     await db.query("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, id]);
+
+    // Insert history record!
+    await db.query("INSERT INTO goal_history (goal_id, amount) VALUES (?, ?)", [id, Number(amount)]);
+
+    // Fetch fresh history list
+    const [historyRows] = await db.query(
+      "SELECT amount, created_at FROM goal_history WHERE goal_id = ? ORDER BY created_at DESC",
+      [id]
+    );
+
+    const history = historyRows.map((h) => ({
+      amount: Number(h.amount),
+      date: h.created_at,
+    }));
 
     res.json({
       id: Number(id),
       current_amount: newAmount,
-      status: newAmount >= Number(goal.target_amount) ? "completed" : "active"
+      status: newAmount >= Number(goal.target_amount) ? "completed" : "active",
+      history
     });
   } catch (err) {
     console.error("Add money error:", err);

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 export default function GoalCard({ goal, onDelete, onAddMoney }) {
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [amount, setAmount] = useState("");
 
   const saved = Number(goal.current_amount !== undefined ? goal.current_amount : goal.saved || 0);
@@ -31,6 +32,15 @@ export default function GoalCard({ goal, onDelete, onAddMoney }) {
     }
     setAmount("");
     setShowAddMoney(false);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
   };
 
   return (
@@ -84,7 +94,7 @@ export default function GoalCard({ goal, onDelete, onAddMoney }) {
         </div>
       </div>
 
-      {/* DEADLINE & ACTION */}
+      {/* DEADLINE & ACTIONS */}
       <div className="flex items-center justify-between pt-1">
         {goal.deadline ? (
           <p className="text-xs text-gray-500 dark:text-slate-400">
@@ -98,14 +108,26 @@ export default function GoalCard({ goal, onDelete, onAddMoney }) {
           <span />
         )}
 
-        {!isCompleted && (
-          <button
-            onClick={() => setShowAddMoney(!showAddMoney)}
-            className="text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
-          >
-            💰 Add Funds
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* View History Toggle */}
+          {goal.history && goal.history.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-xs font-semibold text-gray-500 dark:text-slate-400 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              {showHistory ? "Hide History" : "View History"}
+            </button>
+          )}
+
+          {!isCompleted && (
+            <button
+              onClick={() => setShowAddMoney(!showAddMoney)}
+              className="text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+            >
+              💰 Add Funds
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ADD MONEY BOX */}
@@ -127,6 +149,21 @@ export default function GoalCard({ goal, onDelete, onAddMoney }) {
             Save
           </button>
         </form>
+      )}
+
+      {/* SAVINGS HISTORY RECORD PANEL */}
+      {showHistory && goal.history && goal.history.length > 0 && (
+        <div className="pt-3 border-t border-gray-100 dark:border-slate-800 space-y-2">
+          <h4 className="text-xs font-bold text-gray-700 dark:text-slate-300">Savings History:</h4>
+          <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 text-xs">
+            {goal.history.map((record, index) => (
+              <div key={index} className="flex justify-between text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800/40 px-2 py-1 rounded">
+                <span>📅 {formatDate(record.date)}</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">+₹{record.amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

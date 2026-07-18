@@ -92,12 +92,43 @@ export function parseExcelFile(file, previewLimit = 5) {
         const normalized = rows
           .slice(1)
           .map((row, idx) => {
+            // Detect credit/debit indicator
+            let isCreditTxn = false;
+            
+            headers.forEach((hdr, hIdx) => {
+              const hName = hdr.toLowerCase();
+              const val = String(row[hIdx] || "").toLowerCase().trim();
+              
+              if (/activity|type|txn type|status/.test(hName)) {
+                if (val.includes("received") || val.includes("credit") || val.includes("refund") || val.includes("deposit")) {
+                  isCreditTxn = true;
+                }
+              }
+              if (/credit|credited|cr amount/.test(hName) && val && parseFloat(val) > 0) {
+                isCreditTxn = true;
+              }
+            });
+
             const rawAmount = parseFloat(
               String(row[amountIdx] || "0").replace(/[^0-9.\-]/g, "")
             );
-            if (isNaN(rawAmount) || rawAmount <= 0) return null; // skip credits / zero
+            if (isNaN(rawAmount) || rawAmount <= 0) return null; // skip zero
 
             const title = String(row[titleIdx] || "Imported Expense").trim() || "Imported Expense";
+            
+            const titleLower = title.toLowerCase();
+            if (
+              titleLower.includes("received") || 
+              titleLower.includes("refund") || 
+              titleLower.includes("cashback") || 
+              titleLower.includes("credit") || 
+              titleLower.includes("cash deposit") ||
+              titleLower.includes("added") ||
+              isCreditTxn
+            ) {
+              return null; // skip credits
+            }
+
             const date = parseExcelDate(row[dateIdx]);
             const category = autoCategorize(title);
 

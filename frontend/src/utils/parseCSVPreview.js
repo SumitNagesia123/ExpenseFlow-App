@@ -76,6 +76,25 @@ export function parseCSVPreview(file, previewLimit = 5) {
             const values = parseCSVRow(row);
             if (!values.some((v) => v)) return null; // skip blank rows
 
+            // Detect credit/debit indicator
+            let isCreditTxn = false;
+            
+            // Check headers for type/activity columns
+            headers.forEach((hdr, hIdx) => {
+              const hName = hdr.toLowerCase();
+              const val = (values[hIdx] || "").toLowerCase().trim();
+              
+              if (/activity|type|txn type|status/.test(hName)) {
+                if (val.includes("received") || val.includes("credit") || val.includes("refund") || val.includes("deposit")) {
+                  isCreditTxn = true;
+                }
+              }
+              // If there is a separate credit amount column and it has a positive value, it's a credit!
+              if (/credit|credited|cr amount/.test(hName) && val && parseFloat(val) > 0) {
+                isCreditTxn = true;
+              }
+            });
+
             const rawAmount = parseFloat(
               (values[amountIdx] || "0").replace(/[^0-9.\-]/g, "")
             );
@@ -84,6 +103,20 @@ export function parseCSVPreview(file, previewLimit = 5) {
             const title =
               values[titleIdx]?.replace(/^"|"$/g, "").trim() ||
               "Imported Expense";
+              
+            const titleLower = title.toLowerCase();
+            if (
+              titleLower.includes("received") || 
+              titleLower.includes("refund") || 
+              titleLower.includes("cashback") || 
+              titleLower.includes("credit") || 
+              titleLower.includes("cash deposit") ||
+              titleLower.includes("added") ||
+              isCreditTxn
+            ) {
+              return null; // skip credits
+            }
+
             const category = autoCategorize(title);
 
             // Normalize date from dd-mm-yyyy / dd/mm/yyyy

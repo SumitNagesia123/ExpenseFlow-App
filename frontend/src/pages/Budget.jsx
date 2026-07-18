@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import api, { API_URL } from "../api/api";
 
 /* 🔒 Stable year list (last 10 years) */
@@ -79,7 +80,7 @@ export default function Budget() {
       a.remove();
     } catch (err) {
       console.error("Export error:", err);
-      alert("CSV export failed");
+      toast.error("CSV export failed");
     }
   };
 

@@ -333,7 +333,7 @@ export default function Expenses() {
                   setPendingFile(file);
                 } catch (err) {
                   console.error(err);
-                  alert("Invalid CSV file");
+                  toast.error("Invalid CSV file");
                 }
               }}
             />

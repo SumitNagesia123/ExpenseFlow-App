@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import api from "../api/api";
 import { 
   Mail, 
@@ -40,7 +41,7 @@ export default function GmailSync() {
   // 2. Click Connect Gmail
   const handleConnect = async () => {
     if (!emailInput.trim()) {
-      alert("Please enter a Gmail address to connect.");
+      toast.error("Please enter a Gmail address to connect.");
       return;
     }
     try {
@@ -55,11 +56,11 @@ export default function GmailSync() {
           connectedEmail: res.data.connectedEmail,
           lastSyncedAt: new Date().toISOString()
         });
-        alert(`Successfully connected to ${res.data.connectedEmail}!`);
+        toast.success(`Successfully connected to ${res.data.connectedEmail}!`);
       }
     } catch (err) {
       console.error("Connection failed", err);
-      alert("Failed to authenticate with Google APIs");
+      toast.error("Failed to authenticate with Google APIs");
     }
   };
 

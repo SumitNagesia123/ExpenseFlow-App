@@ -477,8 +477,8 @@ export default function Expenses() {
                       })}
                     </td>
 
-                    <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
-                      ₹{Number(exp.amount).toFixed(2)}
+                    <td className={`px-6 py-4 text-right font-bold ${exp.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}>
+                      {exp.type === 'credit' ? '+' : '-'}₹{Number(exp.amount).toFixed(2)}
                       {exp.isAnomaly && (
                         <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
                           ⚠ Unusual

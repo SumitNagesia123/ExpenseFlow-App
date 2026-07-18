@@ -105,18 +105,16 @@ export function parseCSVPreview(file, previewLimit = 5) {
               "Imported Expense";
               
             const titleLower = title.toLowerCase();
-            if (
+            const isCredit = 
               titleLower.includes("received") || 
               titleLower.includes("refund") || 
               titleLower.includes("cashback") || 
               titleLower.includes("credit") || 
               titleLower.includes("cash deposit") ||
               titleLower.includes("added") ||
-              isCreditTxn
-            ) {
-              return null; // skip credits
-            }
+              isCreditTxn;
 
+            const type = isCredit ? "credit" : "debit";
             const category = autoCategorize(title);
 
             // Normalize date from dd-mm-yyyy / dd/mm/yyyy
@@ -131,7 +129,7 @@ export function parseCSVPreview(file, previewLimit = 5) {
               if (!isNaN(parsed)) date = parsed.toISOString().split("T")[0];
             }
 
-            return { id: idx, title, category, amount: rawAmount, date };
+            return { id: idx, title, category, amount: rawAmount, date, type };
           })
           .filter(Boolean);
 

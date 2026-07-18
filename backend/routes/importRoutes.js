@@ -197,25 +197,50 @@ router.post(
                             const source = "Paytm CSV";
 
                             /* =========================
-                               SKIP INVALID & CREDIT ROWS
+                               SKIP INVALID ROWS
                             ========================= */
+                            if (!amount || amount <= 0) {
+                                continue;
+                            }
+
+                            // Detect type (debit vs credit)
                             const titleLower = title.toLowerCase();
-                            const isCredit = 
+                            
+                            // Check for custom header type fields
+                            let isCredit = 
                                 titleLower.includes("received") || 
                                 titleLower.includes("refund") || 
                                 titleLower.includes("cashback") || 
                                 titleLower.includes("credit") || 
                                 titleLower.includes("cash deposit") ||
-                                titleLower.includes("added");
+                                titleLower.includes("added") ||
+                                titleLower.includes("money received") ||
+                                titleLower.startsWith("receive");
 
-                            if (!amount || amount <= 0 || isCredit) {
-                                continue;
+                            // Check activity/type headers
+                            Object.keys(row).forEach((key) => {
+                                const hName = key.toLowerCase();
+                                const val = String(row[key] || "").toLowerCase().trim();
+                                if (/activity|type|txn type|status/.test(hName)) {
+                                    if (val.includes("received") || val.includes("credit") || val.includes("refund") || val.includes("deposit")) {
+                                        isCredit = true;
+                                    }
+                                }
+                            });
+
+                            if (row["type"] === "credit" || row["Type"] === "credit") {
+                                isCredit = true;
                             }
+                            if (row["type"] === "debit" || row["Type"] === "debit") {
+                                isCredit = false;
+                            }
+
+                            const type = isCredit ? "credit" : "debit";
 
                             /* =========================
                                FUZZY DUPLICATE DETECTION
                             ========================= */
-                            // Normalize the title: strip prefixes and retain alphanumeric text
+                            // Normalize the title
                             const cleanTitle = title
                                 .toLowerCase()
                                 .replace(/paid to|money sent to|transfer to/g, "")
@@ -224,11 +249,10 @@ router.post(
 
                             const [existing] = await db.query(
                                 `SELECT id, title FROM expenses 
-                                 WHERE user_id = ? AND amount = ? AND date = ?`,
-                                [userId, amount, formattedDate]
+                                 WHERE user_id = ? AND amount = ? AND date = ? AND type = ?`,
+                                [userId, amount, formattedDate, type]
                             );
 
-                            // Find if any existing transaction has a matching normalized title
                             const isDuplicate = existing.some(ext => {
                                 const extClean = ext.title
                                     .toLowerCase()
@@ -255,9 +279,10 @@ router.post(
                                   category,
                                   amount,
                                   date,
-                                  source
+                                  source,
+                                  type
                                 )
-                                VALUES (?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
                                 `,
                                 [
                                     userId,
@@ -266,6 +291,7 @@ router.post(
                                     amount,
                                     formattedDate,
                                     source,
+                                    type
                                 ]
                             );
 
@@ -391,11 +417,11 @@ router.post(
                         titleLower.includes("cashback") || 
                         titleLower.includes("credit") || 
                         titleLower.includes("cash deposit") ||
-                        titleLower.includes("added");
+                        titleLower.includes("added") ||
+                        titleLower.includes("money received") ||
+                        titleLower.startsWith("receive");
 
-                    if (!amount || amount <= 0 || isCredit) {
-                        continue;
-                    }
+                    const type = isCredit ? "credit" : "debit";
 
                     /* =========================
                        FUZZY DUPLICATE DETECTION
@@ -408,8 +434,8 @@ router.post(
 
                     const [existing] = await db.query(
                         `SELECT id, title FROM expenses 
-                         WHERE user_id = ? AND amount = ? AND date = ?`,
-                        [userId, amount, date]
+                         WHERE user_id = ? AND amount = ? AND date = ? AND type = ?`,
+                        [userId, amount, date, type]
                     );
 
                     const isDuplicate = existing.some(ext => {
@@ -431,17 +457,18 @@ router.post(
 
                     await db.query(
                         `
-            INSERT INTO expenses
-            (
-              user_id,
-              title,
-              category,
-              amount,
-              date,
-              source
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            `,
+                        INSERT INTO expenses
+                        (
+                          user_id,
+                          title,
+                          category,
+                          amount,
+                          date,
+                          source,
+                          type
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        `,
                         [
                             userId,
                             title,
@@ -449,6 +476,7 @@ router.post(
                             amount,
                             date,
                             "PDF Statement",
+                            type
                         ]
                     );
 

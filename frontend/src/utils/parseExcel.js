@@ -117,22 +117,21 @@ export function parseExcelFile(file, previewLimit = 5) {
             const title = String(row[titleIdx] || "Imported Expense").trim() || "Imported Expense";
             
             const titleLower = title.toLowerCase();
-            if (
+            const isCredit = 
               titleLower.includes("received") || 
               titleLower.includes("refund") || 
               titleLower.includes("cashback") || 
               titleLower.includes("credit") || 
               titleLower.includes("cash deposit") ||
               titleLower.includes("added") ||
-              isCreditTxn
-            ) {
-              return null; // skip credits
-            }
+              isCreditTxn;
+
+            const type = isCredit ? "credit" : "debit";
 
             const date = parseExcelDate(row[dateIdx]);
             const category = autoCategorize(title);
 
-            return { id: idx, title, category, amount: rawAmount, date };
+            return { id: idx, title, category, amount: rawAmount, date, type };
           })
           .filter(Boolean);
 
@@ -140,10 +139,10 @@ export function parseExcelFile(file, previewLimit = 5) {
 
         // Build CSV string for backend upload (reuse /import/csv endpoint)
         const csvLines = [
-          "title,category,amount,date",
+          "title,category,amount,date,type",
           ...normalized.map(
             (r) =>
-              `"${r.title.replace(/"/g, '""')}","${r.category}",${r.amount},${r.date}`
+              `"${r.title.replace(/"/g, '""')}","${r.category}",${r.amount},${r.date},"${r.type}"`
           ),
         ];
         const csvBlob = new Blob([csvLines.join("\n")], { type: "text/csv" });

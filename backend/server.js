@@ -157,54 +157,7 @@ const server = app.listen(PORT, async () => {
   // Clean up any historical credit rows and duplicate entries in the database automatically!
   try {
     console.log("🚀 [Startup Cleanup] Scanning database for credits and duplicates...");
-    // 1. Delete credits/deposits. We keep items starting with 'Paid to', 'Money sent', 'Transfer to', 'Sent to' 
-    // or containing known expense merchants. We delete rows that represent incoming credits/deposits.
-    const [allRows] = await db.query("SELECT id, title, source FROM expenses");
-    const idsToDelete = [];
-
-    for (const r of allRows) {
-      const title = r.title.toLowerCase();
-      
-      // We only apply this filter to Paytm CSV or manual imports where credits could be misclassified.
-      if (r.source === "Paytm CSV" || r.source === "manual") {
-        const isDebitIndicator = 
-          title.includes("paid to") || 
-          title.includes("money sent") || 
-          title.includes("transfer to") || 
-          title.includes("sent to") || 
-          title.includes("swiggy") ||
-          title.includes("zomato") ||
-          title.includes("blinkit") ||
-          title.includes("uber") ||
-          title.includes("ola") ||
-          title.includes("netflix") ||
-          title.includes("spotify") ||
-          title.includes("amazon") ||
-          title.includes("flipkart") ||
-          title.includes("meesho") ||
-          title.includes("prime") ||
-          title.includes("membership") ||
-          title.includes("purchase");
-
-        const isCreditIndicator =
-          title.includes("received") || 
-          title.includes("refund") || 
-          title.includes("cashback") || 
-          title.includes("credit") || 
-          title.includes("cash deposit") ||
-          title.includes("added");
-
-        // If it has a credit indicator, OR it does NOT have a debit indicator, it is a credit!
-        if (isCreditIndicator || !isDebitIndicator) {
-          idsToDelete.push(r.id);
-        }
-      }
-    }
-
-    console.log(`🚀 [Startup Cleanup] Found ${idsToDelete.length} credit/deposit rows to delete.`);
-    if (idsToDelete.length > 0) {
-      await db.query(`DELETE FROM expenses WHERE id IN (${idsToDelete.join(",")})`);
-    }
+    console.log("🚀 [Startup Cleanup] Scanning database for duplicates...");
 
     // 2. Scan remaining rows for fuzzy duplicates
     const [rows] = await db.query("SELECT * FROM expenses ORDER BY id");
@@ -219,7 +172,7 @@ const server = app.listen(PORT, async () => {
         .trim();
 
       const dateStr = new Date(r.date).toISOString().split("T")[0];
-      const key = `${r.user_id}|${cleanTitle}|${Number(r.amount)}|${dateStr}`;
+      const key = `${r.user_id}|${cleanTitle}|${Number(r.amount)}|${dateStr}|${r.type || 'debit'}`;
 
       if (seen.has(key)) {
         toDelete.push(r.id);

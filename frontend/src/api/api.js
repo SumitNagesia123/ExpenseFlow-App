@@ -1,11 +1,23 @@
 import axios from "axios";
 import { auth } from "../firebaseConfig";
 
-// Fallback URL (the user can override this using VITE_API_URL env var during build/hosting deployment)
-const FALLBACK_API = "https://expenseflow-backend.onrender.com";
+const getApiUrl = () => {
+  // 1. If running locally, always target the local backend port 5000
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return "http://localhost:5000/api";
+  }
+  
+  // 2. Otherwise, check environment variables (if they contain a production URL)
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl.endsWith("/api") ? envUrl : `${envUrl}/api`;
+  }
+  
+  // 3. Fallback to production Render backend URL
+  return "https://expenseflow-backend.onrender.com/api";
+};
 
-const backendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || FALLBACK_API;
-export const API_URL = backendUrl.endsWith("/api") ? backendUrl : `${backendUrl}/api`;
+export const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,

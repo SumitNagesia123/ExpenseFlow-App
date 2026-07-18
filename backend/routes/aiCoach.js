@@ -156,10 +156,20 @@ router.get("/recommendations", protect, async (req, res) => {
 Format each as: **[Category]** — Recommendation text here.
 Be data-driven — reference real numbers from their data. Focus on their biggest spending areas and trends.`;
 
-    const { reply, provider } = await callAI([
+    let aiResult = await callAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
     ], { maxTokens: 600, forceProvider: "gemini" });
+
+    // Fallback to Groq if Gemini fails
+    if (!aiResult.reply) {
+      aiResult = await callAI([
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ], { maxTokens: 600, forceProvider: "groq" });
+    }
+
+    const { reply, provider } = aiResult;
 
     // Also compute rule-based quick wins
     const quickWins = [];
@@ -254,10 +264,20 @@ router.post("/query", protect, async (req, res) => {
     const contextStr = buildContextString(ctx);
     const systemPrompt = buildSystemPrompt("analyst", contextStr);
 
-    const { reply, provider } = await callAI([
+    let aiResult = await callAI([
       { role: "system", content: systemPrompt },
       { role: "user", content: question }
     ], { maxTokens: 500, forceProvider: "gemini" });
+
+    // Fallback to Groq if Gemini fails
+    if (!aiResult.reply) {
+      aiResult = await callAI([
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
+      ], { maxTokens: 500, forceProvider: "groq" });
+    }
+
+    const { reply, provider } = aiResult;
 
     // Fallback: rule-based answers if AI unavailable
     let fallbackReply = reply;
@@ -292,7 +312,7 @@ router.get("/report", protect, async (req, res) => {
     const contextStr = buildContextString(ctx);
     const systemPrompt = buildSystemPrompt("analyst", contextStr);
 
-    const { reply, provider } = await callAI([
+    let aiResult = await callAI([
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -306,6 +326,26 @@ router.get("/report", protect, async (req, res) => {
 Format using markdown with headers and bullet points.`
       }
     ], { maxTokens: 1000, forceProvider: "gemini" });
+
+    // Fallback to Groq if Gemini fails
+    if (!aiResult.reply) {
+      aiResult = await callAI([
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Generate a comprehensive monthly AI financial intelligence report. Include:
+1. Executive Summary (2-3 sentences)
+2. Spending Breakdown Analysis (reference real category numbers)
+3. Top 3 Financial Risks this month
+4. Subscription & Recurring Cost Analysis
+5. Savings Opportunity Recommendations (3 specific suggestions)
+6. Financial Health Score verdict
+Format using markdown with headers and bullet points.`
+        }
+      ], { maxTokens: 1000, forceProvider: "groq" });
+    }
+
+    const { reply, provider } = aiResult;
 
     // Compute budget health score
     const healthScore = Math.min(100, Math.max(0,
@@ -344,7 +384,7 @@ router.post("/goals/ai-plan", protect, async (req, res) => {
     const achievable = monthlyRequired <= ctx.remaining;
 
     const systemPrompt = buildSystemPrompt("coach", contextStr);
-    const { reply, provider } = await callAI([
+    let aiResult = await callAI([
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -356,6 +396,24 @@ Given their current spending pattern, generate:
 4. Motivational closing statement`
       }
     ], { maxTokens: 700, forceProvider: "gemini" });
+
+    // Fallback to Groq if Gemini fails
+    if (!aiResult.reply) {
+      aiResult = await callAI([
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `The user wants to save ₹${targetAmount.toLocaleString()} for "${goalName}" in ${targetMonths || 12} months (₹${monthlyRequired}/month needed).
+Given their current spending pattern, generate:
+1. Feasibility assessment (can they realistically achieve this?)
+2. Top 3 specific expense categories they can cut to free up ₹${monthlyRequired}/month
+3. A month-by-month savings milestone plan
+4. Motivational closing statement`
+        }
+      ], { maxTokens: 700, forceProvider: "groq" });
+    }
+
+    const { reply, provider } = aiResult;
 
     res.json({
       goalName,

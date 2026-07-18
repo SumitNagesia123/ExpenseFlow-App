@@ -317,7 +317,7 @@ export default function Expenses() {
           </label>
 
           {/* CSV IMPORT */}
-          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+          <label className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl cursor-pointer hover:bg-red-600 transition-colors">
             Import CSV
             <input
               type="file"
@@ -339,7 +339,7 @@ export default function Expenses() {
           </label>
 
           {/* PDF IMPORT */}
-          <label className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+          <label className="px-4 py-2 text-sm font-medium bg-yellow-400 text-gray-900 rounded-xl cursor-pointer hover:bg-yellow-500 transition-colors">
             Import PDF
             <input
               type="file"

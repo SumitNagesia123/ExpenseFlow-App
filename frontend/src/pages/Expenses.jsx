@@ -361,7 +361,7 @@ export default function Expenses() {
             Import CSV
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.CSV,text/csv,application/csv,text/plain,application/vnd.ms-excel"
               hidden
               onChange={async (e) => {
                 const file = e.target.files[0];

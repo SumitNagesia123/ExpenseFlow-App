@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../api/api";
+import api, { API_URL } from "../api/api";
 import { 
   Bell, 
   ShieldAlert, 
@@ -44,8 +44,7 @@ export default function RealtimeDashboard() {
 
   // 1. Subscribe to Live Server Event Stream
   useEffect(() => {
-    // Standard EventSource for Server-Sent Events (SSE)
-    const backendUrl = import.meta.env.VITE_API_URL || "https://expenseflow-app-production.up.railway.app/api";
+    const backendUrl = API_URL;
     const sseSource = new EventSource(`${backendUrl}/transactions/sms/events`);
 
     sseSource.onmessage = (event) => {

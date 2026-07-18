@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../api/api";
+import api, { API_URL } from "../api/api";
 
 /* 🔒 Stable year list (last 10 years) */
 const CURRENT_YEAR = new Date().getFullYear();
@@ -55,9 +55,7 @@ export default function Budget() {
       const token = localStorage.getItem("token");
 
       // Use the same base URL as the api instance — works on all devices
-      const baseUrl = import.meta.env.VITE_API_URL
-        ? `${import.meta.env.VITE_API_URL}/api`
-        : "https://expenseflow-app-production.up.railway.app/api";
+      const baseUrl = API_URL;
 
       const response = await fetch(
         `${baseUrl}/budget/export?month=${month}&year=${year}`,

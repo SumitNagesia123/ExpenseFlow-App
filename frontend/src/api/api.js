@@ -1,13 +1,11 @@
 import axios from "axios";
 import { auth } from "../firebaseConfig";
 
-// Production Railway URL is the ultimate fallback — works on ALL devices
-const PROD_API = "https://expenseflow-app-production.up.railway.app/api";
+// Fallback URL (the user can override this using VITE_API_URL env var during build/hosting deployment)
+const FALLBACK_API = "https://expenseflow-backend.onrender.com";
 
-const backendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
-const API_URL = backendUrl
-  ? `${backendUrl}/api`
-  : PROD_API;
+const backendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || FALLBACK_API;
+export const API_URL = backendUrl.endsWith("/api") ? backendUrl : `${backendUrl}/api`;
 
 const api = axios.create({
   baseURL: API_URL,

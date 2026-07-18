@@ -91,7 +91,7 @@ export async function callAI(messages, options = {}) {
         }));
 
         const response = await retryFetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ export async function callAI(messages, options = {}) {
             Authorization: `Bearer ${process.env.GROQ_API_KEY}`
           },
           body: JSON.stringify({
-            model: "llama3-8b-8192",
+            model: "llama-3.1-8b-instant",
             messages,
             temperature,
             max_tokens: maxTokens

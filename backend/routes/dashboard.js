@@ -25,9 +25,9 @@ router.get("/", protect, async (req, res) => {
     }
 
     /* ==========================================================
-       1. ROLLING CUMULATIVE STATS (Total Spent & Transactions)
-       Calculates total spent up to the end of the selected month/year.
-       E.g., if July 2026 is selected, sum all transactions up to July 31, 2026.
+       1. CUMULATIVE STATS (Total Spent & Transactions)
+       Calculates net spent up to the end of the selected month/year.
+       Net Spent = SUM(debits) - SUM(credits)
        ========================================================== */
     let cumulativeFilter = "";
     let cumulativeParams = [userId];
@@ -49,24 +49,27 @@ router.get("/", protect, async (req, res) => {
       `
       SELECT 
         COUNT(*) AS totalTransactions,
-        SUM(amount) AS totalSpent
+        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) AS totalSpent
       FROM expenses
-      WHERE user_id = ? AND type = 'debit' ${cumulativeFilter}
+      WHERE user_id = ? ${cumulativeFilter}
       `,
       cumulativeParams
     );
 
     /* ==========================================================
        2. MONTHLY STATS (This Month's Spent)
-       If a month is selected: returns that month's spent.
-       If month is "All": returns current calendar month's spent.
+       If a month is selected: returns net spent for that month.
        ========================================================== */
     let thisMonthSpent = 0;
     if (month && month !== "All") {
       const targetYear = (year && year !== "All") ? Number(year) : new Date().getFullYear();
       const [[monthRow]] = await db.query(
-        `SELECT SUM(amount) AS total FROM expenses 
-         WHERE user_id = ? AND type = 'debit' AND MONTH(date) = ? AND YEAR(date) = ?`,
+        `SELECT 
+           SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+           SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) AS total 
+         FROM expenses 
+         WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
         [userId, Number(month), targetYear]
       );
       thisMonthSpent = Number(monthRow?.total || 0);
@@ -74,8 +77,11 @@ router.get("/", protect, async (req, res) => {
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       const [[monthRow]] = await db.query(
-        `SELECT SUM(amount) AS total FROM expenses 
-         WHERE user_id = ? AND type = 'debit' AND MONTH(date) = ? AND YEAR(date) = ?`,
+        `SELECT 
+           SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+           SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) AS total 
+         FROM expenses 
+         WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
         [userId, currentMonth, currentYear]
       );
       thisMonthSpent = Number(monthRow?.total || 0);
@@ -83,9 +89,10 @@ router.get("/", protect, async (req, res) => {
 
     const [categories] = await db.query(
       `
-      SELECT category, SUM(amount) AS total
+      SELECT category, 
+        SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END) AS total
       FROM expenses
-      WHERE user_id = ? AND type = 'debit' ${timeFilter}
+      WHERE user_id = ? ${timeFilter}
       GROUP BY category
       `,
       params
@@ -96,9 +103,9 @@ router.get("/", protect, async (req, res) => {
       SELECT 
         YEAR(date) AS year,
         MONTH(date) AS month,
-        SUM(amount) AS total
+        SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END) AS total
       FROM expenses
-      WHERE user_id = ? AND type = 'debit' ${year && year !== "All" ? "AND YEAR(date) = ?" : ""}
+      WHERE user_id = ? ${year && year !== "All" ? "AND YEAR(date) = ?" : ""}
       GROUP BY year, month
       ORDER BY year, month
       `,

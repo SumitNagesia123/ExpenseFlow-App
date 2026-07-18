@@ -8,6 +8,7 @@ import PDFParser from "pdf2json";
 
 import db from "../db.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { callAI } from "../utils/aiProvider.js";
 
 const router = express.Router();
 
@@ -129,9 +130,74 @@ const parseAmount = (value) => {
     }
 };
 
-/* =========================
-   CSV IMPORT ROUTE
-========================= */
+/* ==========================================================
+   AI-POWERED TRANSACTION CLASSIFIER (Groq)
+   Classifies transaction titles as "debit" or "credit" in batch.
+   ========================================================== */
+const classifyBatchWithAI = async (items) => {
+    // 1. Local regex pre-classification (fast, token-saving)
+    const classified = items.map((item) => {
+        const title = item.title.toLowerCase();
+        
+        // Explicit debits
+        if (title.startsWith("paid to") || title.startsWith("money sent to") || title.startsWith("transfer to") || title.startsWith("sent to") || title.includes("recharge")) {
+            return { ...item, type: "debit" };
+        }
+        // Explicit credits
+        if (title.startsWith("received from") || title.startsWith("refund from") || title.startsWith("cashback from") || title.startsWith("money received") || title.startsWith("refunded")) {
+            return { ...item, type: "credit" };
+        }
+        
+        // Ambiguous titles (raw names or entities) will be classified by Groq
+        return { ...item, type: null };
+    });
+
+    const ambiguous = classified.filter(item => item.type === null);
+    if (ambiguous.length === 0) {
+        return classified;
+    }
+
+    try {
+        console.log(`🤖 [Groq AI Classifier] Classifying ${ambiguous.length} ambiguous transactions...`);
+        
+        const promptList = ambiguous.map((item, idx) => `${idx + 1}. Title: "${item.title}"`).join("\n");
+        const prompt = `You are a financial parsing engine. Classify each of the following transaction titles as either "debit" (money sent, spent, paid, shopping, bill, recharge, transfer out) or "credit" (money received, credited, deposit, refund, transfer in).
+Return your answer ONLY as a JSON array of strings containing "debit" or "credit" corresponding to the list order. Do not include markdown code block formatting or explanations.
+
+Transactions:
+${promptList}`;
+
+        const aiResponse = await callAI([
+            { role: "system", content: "You output valid JSON lists only. No markdown formatting." },
+            { role: "user", content: prompt }
+        ], { forceProvider: "groq", temperature: 0.1 });
+
+        if (aiResponse && aiResponse.reply) {
+            // Clean markdown blocks if AI accidentally included them
+            const cleanReply = aiResponse.reply.replace(/```json|```/g, "").trim();
+            const types = JSON.parse(cleanReply);
+            
+            if (Array.isArray(types) && types.length === ambiguous.length) {
+                let ambIdx = 0;
+                return classified.map(item => {
+                    if (item.type === null) {
+                        const assignedType = String(types[ambIdx++]).toLowerCase().trim();
+                        return { ...item, type: assignedType === "credit" ? "credit" : "debit" };
+                    }
+                    return item;
+                });
+            }
+        }
+    } catch (err) {
+        console.error("🤖 [Groq AI Classifier] Error:", err.message);
+    }
+
+    // Fallback: Default to debit if AI fails
+    return classified.map(item => ({
+        ...item,
+        type: item.type || "debit"
+    }));
+};
 router.post(
     "/csv",
     protect,
@@ -155,58 +221,27 @@ router.post(
                 })
                 .on("end", async () => {
                     try {
-                        let importedCount = 0;
+                        const parsedRows = [];
 
                         for (const row of results) {
-                            /* =========================
-                               PAYTM CSV NORMALIZATION
-                            ========================= */
-
                             const title =
-                                row[
-                                    "Transaction Details"
-                                ]?.trim() ||
-                                row[
-                                    "Other Transaction Party"
-                                ]?.trim() ||
+                                row["Transaction Details"]?.trim() ||
+                                row["Other Transaction Party"]?.trim() ||
                                 row["Description"]?.trim() ||
                                 row["description"]?.trim() ||
                                 row["merchant"]?.trim() ||
                                 "Unknown Transaction";
 
-                            const rawAmount =
-                                row["Amount"] ||
-                                row["amount"] ||
-                                row["debit"] ||
-                                0;
+                            const rawAmount = row["Amount"] || row["amount"] || row["debit"] || 0;
+                            const amount = parseAmount(rawAmount);
+                            const rawDate = row["Date"] || row["date"] || "";
+                            const formattedDate = formatDate(rawDate);
+                            const category = detectCategory(title);
 
-                            const amount =
-                                parseAmount(rawAmount);
+                            if (!amount || amount <= 0) continue;
 
-                            const rawDate =
-                                row["Date"] ||
-                                row["date"] ||
-                                "";
-
-                            const formattedDate =
-                                formatDate(rawDate);
-
-                            const category =
-                                detectCategory(title);
-
-                            const source = "Paytm CSV";
-
-                            /* =========================
-                               SKIP INVALID ROWS
-                            ========================= */
-                            if (!amount || amount <= 0) {
-                                continue;
-                            }
-
-                            // Detect type (debit vs credit)
+                            // Store standard credit/debit indicators for helper reference
                             const titleLower = title.toLowerCase();
-                            
-                            // Check for custom header type fields
                             let isCredit = 
                                 titleLower.includes("received") || 
                                 titleLower.includes("refund") || 
@@ -217,7 +252,6 @@ router.post(
                                 titleLower.includes("money received") ||
                                 titleLower.startsWith("receive");
 
-                            // Check activity/type headers
                             Object.keys(row).forEach((key) => {
                                 const hName = key.toLowerCase();
                                 const val = String(row[key] || "").toLowerCase().trim();
@@ -228,20 +262,25 @@ router.post(
                                 }
                             });
 
-                            if (row["type"] === "credit" || row["Type"] === "credit") {
-                                isCredit = true;
-                            }
-                            if (row["type"] === "debit" || row["Type"] === "debit") {
-                                isCredit = false;
-                            }
+                            if (row["type"] === "credit" || row["Type"] === "credit") isCredit = true;
+                            if (row["type"] === "debit" || row["Type"] === "debit") isCredit = false;
 
-                            const type = isCredit ? "credit" : "debit";
+                            parsedRows.push({
+                                title,
+                                category,
+                                amount,
+                                date: formattedDate,
+                                source: "Paytm CSV",
+                                type: isCredit ? "credit" : null // null means let Groq decide
+                            });
+                        }
 
-                            /* =========================
-                               FUZZY DUPLICATE DETECTION
-                            ========================= */
-                            // Normalize the title
-                            const cleanTitle = title
+                        // Run Groq batch classifier on any ambiguous transaction types
+                        const classifiedRows = await classifyBatchWithAI(parsedRows);
+
+                        let importedCount = 0;
+                        for (const r of classifiedRows) {
+                            const cleanTitle = r.title
                                 .toLowerCase()
                                 .replace(/paid to|money sent to|transfer to/g, "")
                                 .replace(/[^a-z0-9]/g, "")
@@ -250,7 +289,7 @@ router.post(
                             const [existing] = await db.query(
                                 `SELECT id, title FROM expenses 
                                  WHERE user_id = ? AND amount = ? AND date = ? AND type = ?`,
-                                [userId, amount, formattedDate, type]
+                                [userId, r.amount, r.date, r.type]
                             );
 
                             const isDuplicate = existing.some(ext => {
@@ -262,39 +301,13 @@ router.post(
                                 return extClean === cleanTitle;
                             });
 
-                            if (isDuplicate) {
-                                continue;
-                            }
-
-                            /* =========================
-                               INSERT INTO MYSQL
-                            ========================= */
+                            if (isDuplicate) continue;
 
                             await db.query(
-                                `
-                                INSERT INTO expenses
-                                (
-                                  user_id,
-                                  title,
-                                  category,
-                                  amount,
-                                  date,
-                                  source,
-                                  type
-                                )
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                                `,
-                                [
-                                    userId,
-                                    title,
-                                    category,
-                                    amount,
-                                    formattedDate,
-                                    source,
-                                    type
-                                ]
+                                `INSERT INTO expenses (user_id, title, category, amount, date, source, type)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                                [userId, r.title, r.category, r.amount, r.date, r.source, r.type]
                             );
-
                             importedCount++;
                         }
 
@@ -306,15 +319,8 @@ router.post(
                             imported: importedCount,
                         });
                     } catch (err) {
-                        console.error(
-                            "CSV PROCESS ERROR:",
-                            err
-                        );
-
-                        return res.status(500).json({
-                            error:
-                                "CSV processing failed",
-                        });
+                        console.error("CSV PROCESS ERROR:", err);
+                        return res.status(500).json({ error: "CSV processing failed" });
                     }
                 });
         } catch (err) {

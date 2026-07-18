@@ -45,7 +45,7 @@ export default function SummaryCards({ data, budgets = {} }) {
       label: "Remaining Budget",
       value: (!userBudget && categoryBudgetSum === 0)
         ? "No limit set"
-        : `₹${formatINR(remainingBudget)}`,
+        : `₹${formatINR(Math.max(0, remainingBudget))}`,
       icon: Wallet,
       iconBg: "bg-emerald-100/80 dark:bg-emerald-500/10",
       iconColor: "text-emerald-500",

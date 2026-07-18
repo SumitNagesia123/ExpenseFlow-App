@@ -197,38 +197,48 @@ router.post(
                             const source = "Paytm CSV";
 
                             /* =========================
-                               SKIP INVALID ROWS
+                               SKIP INVALID & CREDIT ROWS
                             ========================= */
+                            const titleLower = title.toLowerCase();
+                            const isCredit = 
+                                titleLower.includes("received") || 
+                                titleLower.includes("refund") || 
+                                titleLower.includes("cashback") || 
+                                titleLower.includes("credit") || 
+                                titleLower.includes("cash deposit") ||
+                                titleLower.includes("added");
 
-                            if (!amount || amount <= 0) {
+                            if (!amount || amount <= 0 || isCredit) {
                                 continue;
                             }
 
                             /* =========================
-                               DUPLICATE DETECTION
+                               FUZZY DUPLICATE DETECTION
                             ========================= */
+                            // Normalize the title: strip prefixes and retain alphanumeric text
+                            const cleanTitle = title
+                                .toLowerCase()
+                                .replace(/paid to|money sent to|transfer to/g, "")
+                                .replace(/[^a-z0-9]/g, "")
+                                .trim();
 
-                            const [existing] =
-                                await db.query(
-                                    `
-                  SELECT id
-                  FROM expenses
-                  WHERE user_id = ?
-                  AND title = ?
-                  AND amount = ?
-                  AND date = ?
-                  LIMIT 1
-                  `,
-                                    [
-                                        userId,
-                                        title,
-                                        amount,
-                                        formattedDate,
-                                    ]
-                                );
+                            const [existing] = await db.query(
+                                `SELECT id, title FROM expenses 
+                                 WHERE user_id = ? AND amount = ? AND date = ?`,
+                                [userId, amount, formattedDate]
+                            );
 
-                            /* Skip duplicate */
-                            if (existing.length > 0) {
+                            // Find if any existing transaction has a matching normalized title
+                            const isDuplicate = existing.some(ext => {
+                                const extClean = ext.title
+                                    .toLowerCase()
+                                    .replace(/paid to|money sent to|transfer to/g, "")
+                                    .replace(/[^a-z0-9]/g, "")
+                                    .trim();
+                                return extClean === cleanTitle;
+                            });
+
+                            if (isDuplicate) {
                                 continue;
                             }
 
@@ -238,17 +248,17 @@ router.post(
 
                             await db.query(
                                 `
-                INSERT INTO expenses
-                (
-                  user_id,
-                  title,
-                  category,
-                  amount,
-                  date,
-                  source
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                `,
+                                INSERT INTO expenses
+                                (
+                                  user_id,
+                                  title,
+                                  category,
+                                  amount,
+                                  date,
+                                  source
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?)
+                                `,
                                 [
                                     userId,
                                     title,
@@ -371,44 +381,47 @@ router.post(
                         )
                         : 0;
 
-                    if (!amount || amount <= 0) {
+                    /* =========================
+                       SKIP INVALID & CREDIT ROWS
+                    ========================= */
+                    const titleLower = title.toLowerCase();
+                    const isCredit = 
+                        titleLower.includes("received") || 
+                        titleLower.includes("refund") || 
+                        titleLower.includes("cashback") || 
+                        titleLower.includes("credit") || 
+                        titleLower.includes("cash deposit") ||
+                        titleLower.includes("added");
+
+                    if (!amount || amount <= 0 || isCredit) {
                         continue;
                     }
 
-                    /* TITLE */
-                    const title = line.trim();
-
-                    /* CATEGORY */
-                    const category =
-                        detectCategory(title);
-
-                    /* DATE */
-                    const date = new Date()
-                        .toISOString()
-                        .split("T")[0];
-
                     /* =========================
-                       DUPLICATE CHECK
+                       FUZZY DUPLICATE DETECTION
                     ========================= */
+                    const cleanTitle = title
+                        .toLowerCase()
+                        .replace(/paid to|money sent to|transfer to/g, "")
+                        .replace(/[^a-z0-9]/g, "")
+                        .trim();
 
-                    const [existing] =
-                        await db.query(
-                            `
-              SELECT id
-              FROM expenses
-              WHERE user_id = ?
-              AND title = ?
-              AND amount = ?
-              LIMIT 1
-              `,
-                            [
-                                userId,
-                                title,
-                                amount,
-                            ]
-                        );
+                    const [existing] = await db.query(
+                        `SELECT id, title FROM expenses 
+                         WHERE user_id = ? AND amount = ? AND date = ?`,
+                        [userId, amount, date]
+                    );
 
-                    if (existing.length > 0) {
+                    const isDuplicate = existing.some(ext => {
+                        const extClean = ext.title
+                            .toLowerCase()
+                            .replace(/paid to|money sent to|transfer to/g, "")
+                            .replace(/[^a-z0-9]/g, "")
+                            .trim();
+                        return extClean === cleanTitle;
+                    });
+
+                    if (isDuplicate) {
                         continue;
                     }
 

@@ -55,8 +55,8 @@ router.get("/", protect, async (req, res) => {
          SELECT 
            YEAR(date) AS y,
            MONTH(date) AS m,
-           GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
-                       SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS monthly_net
+           ABS(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+               SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS monthly_net
          FROM expenses
          WHERE user_id = ? ${cumulativeFilter}
          GROUP BY y, m
@@ -77,8 +77,8 @@ router.get("/", protect, async (req, res) => {
       const targetYear = (year && year !== "All") ? Number(year) : new Date().getFullYear();
       const [[monthRow]] = await db.query(
         `SELECT 
-           GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
-                       SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS total 
+           ABS(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+               SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS total 
          FROM expenses 
          WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
         [userId, Number(month), targetYear]
@@ -89,8 +89,8 @@ router.get("/", protect, async (req, res) => {
       const currentYear = new Date().getFullYear();
       const [[monthRow]] = await db.query(
         `SELECT 
-           GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
-                       SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS total 
+           ABS(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+               SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS total 
          FROM expenses 
          WHERE user_id = ? AND MONTH(date) = ? AND YEAR(date) = ?`,
         [userId, currentMonth, currentYear]

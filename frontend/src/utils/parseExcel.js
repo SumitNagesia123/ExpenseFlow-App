@@ -29,13 +29,16 @@ function detectColumns(headers) {
    Parse Excel date (serial number or string)
    ========================================== */
 function parseExcelDate(val) {
-  if (!val) return "";
+  if (!val) return new Date().toISOString().split("T")[0];
   // Already a JS Date
   if (val instanceof Date) {
+    if (isNaN(val.getTime()) || val.getFullYear() < 1970) {
+      return new Date().toISOString().split("T")[0];
+    }
     return val.toISOString().split("T")[0];
   }
   // Numeric serial (Excel date)
-  if (typeof val === "number") {
+  if (typeof val === "number" && val > 30000) {
     const d = XLSX.SSF.parse_date_code(val);
     if (d) {
       const mm = String(d.m).padStart(2, "0");
@@ -45,8 +48,10 @@ function parseExcelDate(val) {
   }
   // String date — try to normalize
   const str = val.toString().trim();
+  const datePart = str.split(" ")[0].trim();
+  
   // dd-mm-yyyy or dd/mm/yyyy
-  const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  const dmy = datePart.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (dmy) {
     const [, d, m, y] = dmy;
     const year = y.length === 2 ? `20${y}` : y;
@@ -54,8 +59,10 @@ function parseExcelDate(val) {
   }
   // Try native Date parse
   const parsed = new Date(str);
-  if (!isNaN(parsed)) return parsed.toISOString().split("T")[0];
-  return str;
+  if (!isNaN(parsed) && parsed.getFullYear() >= 1970) {
+    return parsed.toISOString().split("T")[0];
+  }
+  return new Date().toISOString().split("T")[0];
 }
 
 /* ==========================================
@@ -70,7 +77,7 @@ export function parseExcelFile(file, previewLimit = 5) {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array", cellDates: false });
+        const workbook = XLSX.read(data, { type: "array", cellDates: true });
 
         // Use first sheet
         const sheetName = workbook.SheetNames[0];
@@ -115,16 +122,24 @@ export function parseExcelFile(file, previewLimit = 5) {
             if (isNaN(rawAmount) || rawAmount <= 0) return null; // skip zero
 
             const title = String(row[titleIdx] || "Imported Expense").trim() || "Imported Expense";
-            
             const titleLower = title.toLowerCase();
-            const isCredit = 
-              titleLower.includes("received") || 
-              titleLower.includes("refund") || 
-              titleLower.includes("cashback") || 
-              titleLower.includes("credit") || 
-              titleLower.includes("cash deposit") ||
-              titleLower.includes("added") ||
-              isCreditTxn;
+            const amountStr = String(row[amountIdx] || "").trim();
+
+            let isCredit = false;
+            if (amountStr.includes("+")) {
+              isCredit = true;
+            } else if (amountStr.includes("-")) {
+              isCredit = false;
+            } else {
+              isCredit = 
+                titleLower.includes("received") || 
+                titleLower.includes("refund") || 
+                titleLower.includes("cashback") || 
+                titleLower.includes("credit") || 
+                titleLower.includes("cash deposit") ||
+                titleLower.includes("added") ||
+                isCreditTxn;
+            }
 
             const type = isCredit ? "credit" : "debit";
 

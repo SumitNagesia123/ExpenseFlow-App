@@ -98,7 +98,12 @@ const formatDate = (rawDate = "") => {
         if (cleanDate.includes("/")) {
             [day, month, year] = cleanDate.split("/");
         } else if (cleanDate.includes("-")) {
-            [day, month, year] = cleanDate.split("-");
+            const parts = cleanDate.split("-");
+            // If the first part is 4 digits, it's already YYYY-MM-DD
+            if (parts[0] && parts[0].length === 4) {
+                return cleanDate;
+            }
+            [day, month, year] = parts;
         }
 
         if (day && month && year) {

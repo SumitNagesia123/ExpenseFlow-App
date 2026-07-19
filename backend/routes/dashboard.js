@@ -46,8 +46,8 @@ router.get("/", protect, async (req, res) => {
     }
 
     const [[countRow]] = await db.query(
-      `SELECT COUNT(*) AS totalTransactions FROM expenses WHERE user_id = ? ${cumulativeFilter}`,
-      cumulativeParams
+      `SELECT COUNT(*) AS totalTransactions FROM expenses WHERE user_id = ? ${timeFilter}`,
+      params
     );
     const [[sumRow]] = await db.query(
       `SELECT COALESCE(SUM(monthly_net), 0) AS totalSpent

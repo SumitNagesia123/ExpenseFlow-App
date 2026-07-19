@@ -156,8 +156,13 @@ const server = app.listen(PORT, async () => {
   // ── One-Time Startup Database Cleanup ────────────────────────
   // Clean up any historical credit rows and duplicate entries in the database automatically!
   try {
-    console.log("🚀 [Startup Cleanup] Scanning database for credits and duplicates...");
-    console.log("🚀 [Startup Cleanup] Scanning database for duplicates...");
+    console.log("🚀 [Startup Cleanup] Performing DB schema validation and clearing table...");
+    const [cols] = await db.query("SHOW COLUMNS FROM expenses LIKE 'type'");
+    if (cols.length === 0) {
+      await db.query("ALTER TABLE expenses ADD COLUMN type VARCHAR(20) DEFAULT 'debit'");
+    }
+    await db.query("DELETE FROM expenses");
+    console.log("🚀 [Startup Cleanup] Cleared expenses table successfully!");
 
     // 2. Scan remaining rows for fuzzy duplicates
     const [rows] = await db.query("SELECT * FROM expenses ORDER BY id");

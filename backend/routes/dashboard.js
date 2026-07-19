@@ -90,7 +90,7 @@ router.get("/", protect, async (req, res) => {
     const [categories] = await db.query(
       `
       SELECT category, 
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END) AS total
+        GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END)) AS total
       FROM expenses
       WHERE user_id = ? ${timeFilter}
       GROUP BY category
@@ -103,7 +103,7 @@ router.get("/", protect, async (req, res) => {
       SELECT 
         YEAR(date) AS year,
         MONTH(date) AS month,
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END) AS total
+        GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END)) AS total
       FROM expenses
       WHERE user_id = ? ${year && year !== "All" ? "AND YEAR(date) = ?" : ""}
       GROUP BY year, month
@@ -114,7 +114,7 @@ router.get("/", protect, async (req, res) => {
 
     const [recent] = await db.query(
       `
-      SELECT id, title, category, amount, date
+      SELECT id, title, category, amount, date, type
       FROM expenses
       WHERE user_id = ? ${timeFilter}
       ORDER BY date DESC
@@ -125,9 +125,9 @@ router.get("/", protect, async (req, res) => {
 
     const [subscriptions] = await db.query(
       `
-      SELECT title AS name, amount
+      SELECT title AS name, amount, type
       FROM expenses
-      WHERE user_id = ? AND category IN ('Bills', 'Services') ${timeFilter}
+      WHERE user_id = ? AND category IN ('Bills', 'Services') AND type = 'debit' ${timeFilter}
       ORDER BY amount DESC
       LIMIT 4
       `,

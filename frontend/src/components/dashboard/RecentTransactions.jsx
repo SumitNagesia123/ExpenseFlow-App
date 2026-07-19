@@ -80,8 +80,8 @@ export default function RecentTransactions({ data = [] }) {
                 </div>
 
                 {/* Amount */}
-                <span className="text-[14px] font-bold text-rose-500 dark:text-rose-400 tabular-nums shrink-0">
-                  −₹{formatINR(item.amount)}
+                <span className={`text-[14px] font-bold tabular-nums shrink-0 ${item.type === 'credit' ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                  {item.type === 'credit' ? '+' : '−'}₹{formatINR(item.amount)}
                 </span>
               </li>
             );

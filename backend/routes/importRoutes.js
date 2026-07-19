@@ -92,24 +92,32 @@ const detectCategory = (title = "") => {
 ========================= */
 const formatDate = (rawDate = "") => {
     try {
-        /* DD/MM/YYYY → YYYY-MM-DD */
-        if (rawDate.includes("/")) {
-            const [day, month, year] =
-                rawDate.split("/");
-
-            if (day && month && year) {
-                return `${year}-${month}-${day}`;
-            }
+        const cleanDate = String(rawDate || "").split(" ")[0].trim();
+        
+        let day, month, year;
+        if (cleanDate.includes("/")) {
+            [day, month, year] = cleanDate.split("/");
+        } else if (cleanDate.includes("-")) {
+            [day, month, year] = cleanDate.split("-");
         }
 
-        /* fallback */
-        return new Date()
-            .toISOString()
-            .split("T")[0];
+        if (day && month && year) {
+            // Ensure year is 4 digits
+            const parsedYear = year.length === 2 ? `20${year}` : year;
+            // Pad month and day to 2 digits
+            const parsedMonth = String(month).padStart(2, "0");
+            const parsedDay = String(day).padStart(2, "0");
+            return `${parsedYear}-${parsedMonth}-${parsedDay}`;
+        }
+
+        const parsed = new Date(rawDate);
+        if (!isNaN(parsed)) {
+            return parsed.toISOString().split("T")[0];
+        }
+
+        return new Date().toISOString().split("T")[0];
     } catch {
-        return new Date()
-            .toISOString()
-            .split("T")[0];
+        return new Date().toISOString().split("T")[0];
     }
 };
 
@@ -242,16 +250,29 @@ router.post(
 
                             // Store standard credit/debit indicators for helper reference
                             const titleLower = title.toLowerCase();
-                            let isCredit = 
-                                titleLower.includes("received") || 
-                                titleLower.includes("refund") || 
-                                titleLower.includes("cashback") || 
-                                titleLower.includes("credit") || 
-                                titleLower.includes("cash deposit") ||
-                                titleLower.includes("added") ||
-                                titleLower.includes("money received") ||
-                                titleLower.startsWith("receive");
+                            const rawAmountStr = String(rawAmount || "").trim();
+                             
+                            let isCredit = false;
 
+                            // 1. Explicit symbol checks (+ / -)
+                            if (rawAmountStr.includes("+")) {
+                                isCredit = true;
+                            } else if (rawAmountStr.includes("-")) {
+                                isCredit = false;
+                            } else {
+                                // 2. Keyword checks
+                                isCredit = 
+                                    titleLower.includes("received") || 
+                                    titleLower.includes("refund") || 
+                                    titleLower.includes("cashback") || 
+                                    titleLower.includes("credit") || 
+                                    titleLower.includes("cash deposit") ||
+                                    titleLower.includes("added") ||
+                                    titleLower.includes("money received") ||
+                                    titleLower.startsWith("receive");
+                            }
+
+                            // 3. Check activity/type headers and credit columns
                             Object.keys(row).forEach((key) => {
                                 const hName = key.toLowerCase();
                                 const val = String(row[key] || "").toLowerCase().trim();
@@ -259,6 +280,9 @@ router.post(
                                     if (val.includes("received") || val.includes("credit") || val.includes("refund") || val.includes("deposit")) {
                                         isCredit = true;
                                     }
+                                }
+                                if (/credit|cr amount|received|deposit/.test(hName) && val && parseFloat(val.replace(/[^0-9.]/g, "")) > 0) {
+                                    isCredit = true;
                                 }
                             });
 
@@ -385,37 +409,44 @@ router.post(
 
             /* SPLIT INTO LINES */
             const lines = text.split("\n");
-
-            let importedCount = 0;
+            const parsedRows = [];
 
             for (const line of lines) {
-                const lower =
-                    line.toLowerCase();
+                const lower = line.toLowerCase();
 
-                /* BASIC DETECTION */
+                // Basic detection for line containing a transaction details
                 if (
                     lower.includes("paid") ||
                     lower.includes("debit") ||
                     lower.includes("sent") ||
-                    lower.includes("transaction")
+                    lower.includes("transaction") ||
+                    lower.includes("received") ||
+                    lower.includes("refund") ||
+                    lower.includes("cashback")
                 ) {
-                    /* EXTRACT AMOUNT */
-                    const amountMatch =
-                        line.match(
-                            /-?\d+(\.\d{1,2})?/
-                        );
+                    // Extract Date
+                    let txnDate = new Date().toISOString().split("T")[0];
+                    const dateMatch = line.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+                    if (dateMatch) {
+                        txnDate = formatDate(dateMatch[0]);
+                    }
 
-                    const amount = amountMatch
-                        ? Math.abs(
-                            parseFloat(
-                                amountMatch[0]
-                            )
-                        )
-                        : 0;
+                    // Extract Amount
+                    const amountMatch = line.match(/\d+[\d,]*\.\d{2}/) || line.match(/\d+/);
+                    const amount = amountMatch ? parseAmount(amountMatch[0]) : 0;
 
-                    /* =========================
-                       SKIP INVALID & CREDIT ROWS
-                    ========================= */
+                    if (!amount || amount <= 0) continue;
+
+                    // Title is the remaining content of the line
+                    let title = line
+                        .replace(dateMatch ? dateMatch[0] : "", "")
+                        .replace(amountMatch ? amountMatch[0] : "", "")
+                        .replace(/[\d,]+/, "") // strip other numbers
+                        .replace(/₹|rs\.?/gi, "")
+                        .trim();
+
+                    if (!title) title = "PDF Imported Transaction";
+
                     const titleLower = title.toLowerCase();
                     const isCredit = 
                         titleLower.includes("received") || 
@@ -425,69 +456,57 @@ router.post(
                         titleLower.includes("cash deposit") ||
                         titleLower.includes("added") ||
                         titleLower.includes("money received") ||
-                        titleLower.startsWith("receive");
+                        titleLower.startsWith("receive") ||
+                        line.includes("+");
 
-                    const type = isCredit ? "credit" : "debit";
+                    const category = detectCategory(title);
 
-                    /* =========================
-                       FUZZY DUPLICATE DETECTION
-                    ========================= */
-                    const cleanTitle = title
+                    parsedRows.push({
+                        title,
+                        category,
+                        amount,
+                        date: txnDate,
+                        source: "PDF Statement",
+                        type: isCredit ? "credit" : null
+                    });
+                }
+            }
+
+            // Run Groq AI batch classification
+            const classifiedRows = await classifyBatchWithAI(parsedRows);
+
+            let importedCount = 0;
+            for (const r of classifiedRows) {
+                const cleanTitle = r.title
+                    .toLowerCase()
+                    .replace(/paid to|money sent to|transfer to/g, "")
+                    .replace(/[^a-z0-9]/g, "")
+                    .trim();
+
+                const [existing] = await db.query(
+                    `SELECT id, title FROM expenses 
+                     WHERE user_id = ? AND amount = ? AND date = ? AND type = ?`,
+                    [userId, r.amount, r.date, r.type]
+                );
+
+                const isDuplicate = existing.some(ext => {
+                    const extClean = ext.title
                         .toLowerCase()
                         .replace(/paid to|money sent to|transfer to/g, "")
                         .replace(/[^a-z0-9]/g, "")
                         .trim();
+                    return extClean === cleanTitle;
+                });
 
-                    const [existing] = await db.query(
-                        `SELECT id, title FROM expenses 
-                         WHERE user_id = ? AND amount = ? AND date = ? AND type = ?`,
-                        [userId, amount, date, type]
-                    );
+                if (isDuplicate) continue;
 
-                    const isDuplicate = existing.some(ext => {
-                        const extClean = ext.title
-                            .toLowerCase()
-                            .replace(/paid to|money sent to|transfer to/g, "")
-                            .replace(/[^a-z0-9]/g, "")
-                            .trim();
-                        return extClean === cleanTitle;
-                    });
+                await db.query(
+                    `INSERT INTO expenses (user_id, title, category, amount, date, source, type)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [userId, r.title, r.category, r.amount, r.date, r.source, r.type]
+                );
 
-                    if (isDuplicate) {
-                        continue;
-                    }
-
-                    /* =========================
-                       INSERT INTO MYSQL
-                    ========================= */
-
-                    await db.query(
-                        `
-                        INSERT INTO expenses
-                        (
-                          user_id,
-                          title,
-                          category,
-                          amount,
-                          date,
-                          source,
-                          type
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        `,
-                        [
-                            userId,
-                            title,
-                            category,
-                            amount,
-                            date,
-                            "PDF Statement",
-                            type
-                        ]
-                    );
-
-                    importedCount++;
-                }
+                importedCount++;
             }
 
             /* DELETE TEMP FILE */

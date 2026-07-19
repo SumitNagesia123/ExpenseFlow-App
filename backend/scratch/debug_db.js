@@ -6,12 +6,14 @@ async function run() {
   const url = process.env.DATABASE_URL;
   console.log("DATABASE_URL:", url);
   try {
-    const conn = await mysql.createConnection(url);
-    const [rows] = await conn.query("SELECT COUNT(*) AS count FROM expenses");
-    console.log("Row count in expenses table:", rows[0].count);
-    
-    const [sample] = await conn.query("SELECT * FROM expenses LIMIT 3");
-    console.log("Sample rows:", sample);
+    const conn = await mysql.createConnection({
+      host: "localhost",
+      user: "root",
+      password: "Nagesia@123",
+      database: "expenseflow"
+    });
+    const [rows] = await conn.query("SELECT * FROM expenses WHERE title LIKE '%Nagesia%'");
+    console.log("Amit Nagesia rows:", rows);
     
     conn.end();
   } catch (err) {

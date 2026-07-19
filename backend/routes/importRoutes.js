@@ -150,13 +150,18 @@ const parseAmount = (value) => {
 const classifyBatchWithAI = async (items) => {
     // 1. Local regex pre-classification (fast, token-saving)
     const classified = items.map((item) => {
+        // If type is already explicitly determined (e.g., from minus sign checks), preserve it!
+        if (item.type === "credit" || item.type === "debit") {
+            return item;
+        }
+
         const title = item.title.toLowerCase();
         
-        // Explicit debits
+        // Explicit debits based on keywords
         if (title.startsWith("paid to") || title.startsWith("money sent to") || title.startsWith("transfer to") || title.startsWith("sent to") || title.includes("recharge")) {
             return { ...item, type: "debit" };
         }
-        // Explicit credits
+        // Explicit credits based on keywords
         if (title.startsWith("received from") || title.startsWith("refund from") || title.startsWith("cashback from") || title.startsWith("money received") || title.startsWith("refunded")) {
             return { ...item, type: "credit" };
         }

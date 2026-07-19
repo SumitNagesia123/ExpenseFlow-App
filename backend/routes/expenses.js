@@ -12,7 +12,7 @@ router.get("/", protect, async (req, res) => {
     const userId = req.user.id;
 
     const [rows] = await db.query(
-      `SELECT id, title, category, amount, date, source
+      `SELECT id, title, category, amount, date, source, type
        FROM expenses
        WHERE user_id = ?
        ORDER BY date DESC`,
@@ -32,16 +32,16 @@ router.get("/", protect, async (req, res) => {
 router.post("/", protect, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, category, amount, date, source } = req.body;
+    const { title, category, amount, date, source, type } = req.body;
 
     if (!title || !category || !amount || !date) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     await db.query(
-      `INSERT INTO expenses (user_id, title, category, amount, date, source)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, title, category, amount, date, source || "manual"]
+      `INSERT INTO expenses (user_id, title, category, amount, date, source, type)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, title, category, amount, date, source || "manual", type || "debit"]
     );
 
     res.json({ message: "Expense added successfully" });

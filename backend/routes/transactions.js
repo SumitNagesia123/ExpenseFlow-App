@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT id, title, category, amount, date, source
+      SELECT id, title, category, amount, date, source, type
       FROM expenses
       ORDER BY date DESC
     `);

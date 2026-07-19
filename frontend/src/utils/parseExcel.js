@@ -116,32 +116,16 @@ export function parseExcelFile(file, previewLimit = 5) {
               }
             });
 
-            const rawAmount = parseFloat(
-              String(row[amountIdx] || "0").replace(/[^0-9.\-]/g, "")
-            );
-            if (isNaN(rawAmount) || rawAmount <= 0) return null; // skip zero
+            const amountStr = String(row[amountIdx] || "0").trim();
+            const hasMinus = amountStr.includes("-");
+            
+            let rawAmount = parseFloat(amountStr.replace(/[^0-9.\-]/g, ""));
+            if (isNaN(rawAmount) || rawAmount === 0) return null;
+            
+            rawAmount = Math.abs(rawAmount);
 
             const title = String(row[titleIdx] || "Imported Expense").trim() || "Imported Expense";
-            const titleLower = title.toLowerCase();
-            const amountStr = String(row[amountIdx] || "").trim();
-
-            let isCredit = false;
-            if (amountStr.includes("+")) {
-              isCredit = true;
-            } else if (amountStr.includes("-")) {
-              isCredit = false;
-            } else {
-              isCredit = 
-                titleLower.includes("received") || 
-                titleLower.includes("refund") || 
-                titleLower.includes("cashback") || 
-                titleLower.includes("credit") || 
-                titleLower.includes("cash deposit") ||
-                titleLower.includes("added") ||
-                isCreditTxn;
-            }
-
-            const type = isCredit ? "credit" : "debit";
+            const type = hasMinus ? "debit" : "credit";
 
             const date = parseExcelDate(row[dateIdx]);
             const category = autoCategorize(title);

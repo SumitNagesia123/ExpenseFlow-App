@@ -95,26 +95,20 @@ export function parseCSVPreview(file, previewLimit = 5) {
               }
             });
 
-            const rawAmount = parseFloat(
-              (values[amountIdx] || "0").replace(/[^0-9.\-]/g, "")
-            );
-            if (isNaN(rawAmount) || rawAmount <= 0) return null; // skip zero / credits
+            const rawAmountStr = String(values[amountIdx] || "0").trim();
+            const hasMinus = rawAmountStr.includes("-");
+            
+            let rawAmount = parseFloat(rawAmountStr.replace(/[^0-9.\-]/g, ""));
+            if (isNaN(rawAmount) || rawAmount === 0) return null;
+            
+            // Convert to absolute positive amount for database storage
+            rawAmount = Math.abs(rawAmount);
 
             const title =
               values[titleIdx]?.replace(/^"|"$/g, "").trim() ||
               "Imported Expense";
               
-            const titleLower = title.toLowerCase();
-            const isCredit = 
-              titleLower.includes("received") || 
-              titleLower.includes("refund") || 
-              titleLower.includes("cashback") || 
-              titleLower.includes("credit") || 
-              titleLower.includes("cash deposit") ||
-              titleLower.includes("added") ||
-              isCreditTxn;
-
-            const type = isCredit ? "credit" : "debit";
+            const type = hasMinus ? "debit" : "credit";
             const category = autoCategorize(title);
 
             // Normalize date from dd-mm-yyyy / dd/mm/yyyy

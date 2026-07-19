@@ -252,57 +252,24 @@ router.post(
                             const category = detectCategory(title);
 
                             if (!amount || amount <= 0) continue;
-
-                            // Store standard credit/debit indicators for helper reference
-                            const titleLower = title.toLowerCase();
-                            const rawAmountStr = String(rawAmount || "").trim();
+                             const rawAmountStr = String(rawAmount || "").trim();
+                             const hasMinus = rawAmountStr.includes("-");
                              
-                            let isCredit = false;
+                             let type = hasMinus ? "debit" : "credit";
 
-                            // 1. Explicit symbol checks (+ / -)
-                            if (rawAmountStr.includes("+")) {
-                                isCredit = true;
-                            } else if (rawAmountStr.includes("-")) {
-                                isCredit = false;
-                            } else {
-                                // 2. Keyword checks
-                                isCredit = 
-                                    titleLower.includes("received") || 
-                                    titleLower.includes("refund") || 
-                                    titleLower.includes("cashback") || 
-                                    titleLower.includes("credit") || 
-                                    titleLower.includes("cash deposit") ||
-                                    titleLower.includes("added") ||
-                                    titleLower.includes("money received") ||
-                                    titleLower.startsWith("receive");
-                            }
+                             // If type is explicitly passed (from frontend Excel mapper), respect it
+                             if (row["type"] === "credit" || row["Type"] === "credit") type = "credit";
+                             if (row["type"] === "debit" || row["Type"] === "debit") type = "debit";
 
-                            // 3. Check activity/type headers and credit columns
-                            Object.keys(row).forEach((key) => {
-                                const hName = key.toLowerCase();
-                                const val = String(row[key] || "").toLowerCase().trim();
-                                if (/activity|type|txn type|status/.test(hName)) {
-                                    if (val.includes("received") || val.includes("credit") || val.includes("refund") || val.includes("deposit")) {
-                                        isCredit = true;
-                                    }
-                                }
-                                if (/credit|cr amount|received|deposit/.test(hName) && val && parseFloat(val.replace(/[^0-9.]/g, "")) > 0) {
-                                    isCredit = true;
-                                }
-                            });
-
-                            if (row["type"] === "credit" || row["Type"] === "credit") isCredit = true;
-                            if (row["type"] === "debit" || row["Type"] === "debit") isCredit = false;
-
-                            parsedRows.push({
-                                title,
-                                category,
-                                amount,
-                                date: formattedDate,
-                                source: "Paytm CSV",
-                                type: isCredit ? "credit" : null // null means let Groq decide
-                            });
-                        }
+                             parsedRows.push({
+                                 title,
+                                 category,
+                                 amount,
+                                 date: formattedDate,
+                                 source: "Paytm CSV",
+                                 type
+                             });
+                         }
 
                         // Run Groq batch classifier on any ambiguous transaction types
                         const classifiedRows = await classifyBatchWithAI(parsedRows);
@@ -452,17 +419,8 @@ router.post(
 
                     if (!title) title = "PDF Imported Transaction";
 
-                    const titleLower = title.toLowerCase();
-                    const isCredit = 
-                        titleLower.includes("received") || 
-                        titleLower.includes("refund") || 
-                        titleLower.includes("cashback") || 
-                        titleLower.includes("credit") || 
-                        titleLower.includes("cash deposit") ||
-                        titleLower.includes("added") ||
-                        titleLower.includes("money received") ||
-                        titleLower.startsWith("receive") ||
-                        line.includes("+");
+                    const hasMinus = line.includes("-");
+                    const type = hasMinus ? "debit" : "credit";
 
                     const category = detectCategory(title);
 
@@ -472,7 +430,7 @@ router.post(
                         amount,
                         date: txnDate,
                         source: "PDF Statement",
-                        type: isCredit ? "credit" : null
+                        type
                     });
                 }
             }

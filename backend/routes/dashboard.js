@@ -45,17 +45,28 @@ router.get("/", protect, async (req, res) => {
       }
     }
 
-    const [[cumulativeCards]] = await db.query(
-      `
-      SELECT 
-        COUNT(*) AS totalTransactions,
-        GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
-                    SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS totalSpent
-      FROM expenses
-      WHERE user_id = ? ${cumulativeFilter}
-      `,
+    const [[countRow]] = await db.query(
+      `SELECT COUNT(*) AS totalTransactions FROM expenses WHERE user_id = ? ${cumulativeFilter}`,
       cumulativeParams
     );
+    const [[sumRow]] = await db.query(
+      `SELECT COALESCE(SUM(monthly_net), 0) AS totalSpent
+       FROM (
+         SELECT 
+           YEAR(date) AS y,
+           MONTH(date) AS m,
+           GREATEST(0, SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) - 
+                       SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)) AS monthly_net
+         FROM expenses
+         WHERE user_id = ? ${cumulativeFilter}
+         GROUP BY y, m
+       ) AS monthly_totals`,
+      cumulativeParams
+    );
+    const cumulativeCards = {
+      totalTransactions: countRow?.totalTransactions || 0,
+      totalSpent: sumRow?.totalSpent || 0
+    };
 
     /* ==========================================================
        2. MONTHLY STATS (This Month's Spent)

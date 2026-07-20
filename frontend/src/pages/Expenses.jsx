@@ -56,6 +56,11 @@ export default function Expenses() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
+  /* Filter States */
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [filterType, setFilterType] = useState("All");
+
   /* Add Expense State */
   const [newExpense, setNewExpense] = useState({
     title: "",
@@ -161,13 +166,14 @@ export default function Expenses() {
   const handleImportExcel = async (file) => {
     if (!file) return;
     try {
-      const { preview, total, csvFile } = await parseExcelFile(file);
-      setPreviewData(preview);
-      setPendingFile(csvFile);
-      toast.success(`Found ${total} expense rows. Review and confirm.`);
+      const parsed = await parseExcelFile(file);
+      const res = await importCSV(file);
+      toast.success(res.message || "Excel file imported successfully");
+      const updated = await getExpenses();
+      setExpenses(updated);
     } catch (err) {
-      console.error("Excel parse error:", err);
-      toast.error(typeof err === "string" ? err : "Failed to read Excel file. Make sure it has Date, Description and Amount columns.");
+      console.error(err);
+      toast.error("Excel import failed");
     }
   };
 
@@ -191,14 +197,14 @@ export default function Expenses() {
      PDF IMPORT
   ========================= */
   const handleImportPDF = async (file) => {
+    if (!file) return;
     try {
-      if (!file) return;
-      const result = await importPDF(file);
-      toast.success(`PDF imported successfully. ${result.imported} transactions added.`);
-      const updatedExpenses = await getExpenses();
-      setExpenses(updatedExpenses);
+      const res = await importPDF(file);
+      toast.success(res.message || "PDF file imported successfully");
+      const updated = await getExpenses();
+      setExpenses(updated);
     } catch (err) {
-      console.error("PDF Import Error:", err);
+      console.error(err);
       toast.error("PDF import failed");
     }
   };
@@ -209,24 +215,25 @@ export default function Expenses() {
   const handleConfirmImport = async () => {
     if (!pendingFile) return;
     try {
-      const result = await importCSV(pendingFile);
-      toast.success(`✅ Imported ${result.imported} transactions successfully!`);
-      setPreviewData(null);
-      setPendingFile(null);
+      const res = await importCSV(pendingFile);
+      toast.success(res.message || "Import completed");
       const updated = await getExpenses();
       setExpenses(updated);
     } catch (err) {
-      console.error("Import error:", err);
-      toast.error("Import failed. Please try again.");
+      console.error(err);
+      toast.error("Import failed");
+    } finally {
+      setPreviewData(null);
+      setPendingFile(null);
     }
   };
 
   /* =========================
      DELETE IMPORTED
   ========================= */
-  const handleDeleteImports = async () => {
+  const handleDeleteImports = () => {
     const count = expenses.filter(
-      (e) => e.source === "Paytm CSV" || e.source === "PDF Statement"
+      (e) => e.source && e.source !== "manual"
     ).length;
     if (count === 0) return toast.error("No imported expenses found.");
     setShowBulkDeleteConfirm(true);
@@ -247,10 +254,16 @@ export default function Expenses() {
   };
 
   /* =========================
-     AI ANOMALY DETECTION
+     AI ANOMALY DETECTION & FILTERS
   ========================= */
-  const expensesWithAnomalies =
-    detectAnomalies(expenses);
+  const filteredExpenses = expenses.filter(exp => {
+    const matchesSearch = String(exp.title || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "All" || exp.category === filterCategory;
+    const matchesType = filterType === "All" || exp.type === filterType;
+    return matchesSearch && matchesCategory && matchesType;
+  });
+
+  const expensesWithAnomalies = detectAnomalies(filteredExpenses);
 
   /* =========================
      LOADING / ERROR STATES
@@ -290,10 +303,10 @@ export default function Expenses() {
         {/* IMPORT / EXPORT */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => exportToCSV(expenses)}
+            onClick={() => exportToCSV(filteredExpenses)}
             className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
           >
-            Export All
+            Export Filtered CSV
           </button>
 
           {/* EXCEL IMPORT */}
@@ -359,6 +372,51 @@ export default function Expenses() {
             <span>🗑️</span>
             Delete Imported
           </button>
+        </div>
+      </div>
+
+      {/* =========================
+          FILTERS & SEARCH (PM & UX Feature)
+      ========================= */}
+      <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 p-5 rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 transition-colors">
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Search Transactions</label>
+          <input
+            type="text"
+            placeholder="Search by description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Filter by Category</label>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+          >
+            <option value="All">All Categories</option>
+            {Object.keys(CATEGORY_EMOJI).map((cat) => (
+              <option key={cat} value={cat}>
+                {CATEGORY_EMOJI[cat]} {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Transaction Type</label>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+          >
+            <option value="All">All Types</option>
+            <option value="debit">Spending (Debits)</option>
+            <option value="credit">Income / Refunds (Credits)</option>
+          </select>
         </div>
       </div>
 

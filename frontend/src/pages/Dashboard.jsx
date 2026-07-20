@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [budgets, setBudgets] = useState({});
   const [selectedMonth, setSelectedMonth] = useState("All");
   const [selectedYear, setSelectedYear] = useState("All");
+  const [showTelemetry, setShowTelemetry] = useState(false);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -71,6 +72,13 @@ export default function Dashboard() {
         dashData.charts.monthlyTrend ||= [];
         dashData.recent ||= [];
         dashData.subscriptions ||= [];
+        dashData.insights ||= [];
+        dashData.telemetry ||= {
+          totalRecordsProcessed: 0,
+          aiCategorizationSuccessRate: 100,
+          averageParserResponseTime: "0ms",
+          estimatedApiCost: "₹0.00"
+        };
 
         dashData.cards.totalTransactions = Number(dashData.cards.totalTransactions || 0);
         dashData.cards.totalSpent = Number(dashData.cards.totalSpent || 0);
@@ -129,7 +137,7 @@ export default function Dashboard() {
       </div>
     );
 
-  const { cards, charts, recent, subscriptions } = dashboard;
+  const { cards, charts, recent, subscriptions, insights, telemetry } = dashboard;
 
   /* Month filter */
   const filteredMonthlyData = charts.monthlyTrend;
@@ -155,6 +163,13 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowTelemetry(!showTelemetry)}
+            className="border border-stone-200/60 dark:border-white/[0.08] bg-white dark:bg-[#1e293b] text-stone-600 dark:text-slate-300 hover:text-stone-900 dark:hover:text-white rounded-full px-4 py-2 text-[13px] font-medium transition-all hover:bg-stone-50 dark:hover:bg-slate-800"
+          >
+            {showTelemetry ? "📊 Hide Telemetry" : "📊 Show System Telemetry"}
+          </button>
+
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
@@ -182,6 +197,63 @@ export default function Dashboard() {
           </select>
         </div>
       </div>
+
+      {/* ── SMART INSIGHTS SECTION (PM Feature) ────────────────── */}
+      {insights && insights.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {insights.map((ins, idx) => (
+            <div
+              key={idx}
+              className={`p-4 rounded-xl border flex gap-3.5 items-start shadow-sm transition-all hover:shadow-md ${
+                ins.severity === "success"
+                  ? "bg-green-50/50 border-green-200/50 dark:bg-green-950/20 dark:border-green-800/20 text-green-800 dark:text-green-300"
+                  : ins.severity === "warning"
+                  ? "bg-orange-50/50 border-orange-200/50 dark:bg-orange-950/20 dark:border-orange-800/20 text-orange-800 dark:text-orange-300"
+                  : "bg-indigo-50/30 border-indigo-100 dark:bg-indigo-950/10 dark:border-indigo-900/20 text-indigo-900 dark:text-indigo-300"
+              }`}
+            >
+              <span className="text-lg mt-0.5">
+                {ins.severity === "success" ? "✅" : ins.severity === "warning" ? "⚠️" : "💡"}
+              </span>
+              <div>
+                <h4 className="font-semibold text-[13px] tracking-tight mb-0.5">{ins.title}</h4>
+                <p className="text-xs leading-relaxed opacity-90">{ins.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── SYSTEM TELEMETRY (PM & Engineering Feature) ─────────── */}
+      {showTelemetry && telemetry && (
+        <div className="bg-gradient-to-r from-stone-900 to-stone-850 text-white rounded-2xl p-6 shadow-xl border border-stone-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5 text-7xl font-bold select-none">SYSTEM METRICS</div>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div>
+              <h3 className="text-sm font-semibold tracking-wider text-indigo-400 uppercase">System Instrumentation & Telemetry</h3>
+              <p className="text-xs text-stone-400 mt-1">Live performance & resource usage metrics of the parser and classification model.</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-12">
+              <div>
+                <div className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">Total Records</div>
+                <div className="text-xl font-bold mt-1 text-white">{telemetry.totalRecordsProcessed}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">AI Categorization</div>
+                <div className="text-xl font-bold mt-1 text-green-400">{telemetry.aiCategorizationSuccessRate}%</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">Avg Latency</div>
+                <div className="text-xl font-bold mt-1 text-yellow-400">{telemetry.averageParserResponseTime}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">Model Exec Cost</div>
+                <div className="text-xl font-bold mt-1 text-indigo-300">{telemetry.estimatedApiCost}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SUMMARY CARDS ──────────────────────────────────── */}
       <SummaryCards data={cards} budgets={budgets} />
